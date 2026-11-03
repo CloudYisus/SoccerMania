@@ -12,9 +12,11 @@ import {
   type MatchTeamSetup,
   type Mentality,
   type PlayerInstruction,
+  type HighlightKind,
 } from '@fu/domain';
 import { createMatchView, type MatchView } from '@fu/match-renderer';
 import { Icon } from '../../components/ui/icons';
+import { PlayerCard } from '../../components/card/PlayerCard';
 import { Button, Coins, Segmented } from '../../components/ui/ui';
 import { useGame } from '../../state/gameStore';
 import { computeSquadView } from '../../state/squadView';
@@ -60,6 +62,7 @@ export default function MatchScreen() {
   }, [req]);
 
   const hostRef = useRef<HTMLDivElement>(null);
+  const ingestRef = useRef<(evs: MatchEvent[], live: boolean) => void>(() => {});
   const viewRef = useRef<MatchView | null>(null);
   const [snap, setSnap] = useState<MatchSnapshot>(() => engine.getSnapshot());
   const [feed, setFeed] = useState<MatchEvent[]>([]);
@@ -68,9 +71,54 @@ export default function MatchScreen() {
   const [selected, setSelected] = useState<string | null>(null);
   const [mentality, setMentality] = useState<Mentality>(home.tactics.mentality);
   const [confirmLeave, setConfirmLeave] = useState(false);
-  const [goalBanner, setGoalBanner] = useState<MatchEvent | null>(null);
-  const control = useRef({ speed, paused });
-  control.current = { speed, paused };
+  const [goalShow, setGoalShow] = useState<MatchEvent | null>(null);
+  const [banners, setBanners] = useState<MatchEvent[]>([]);
+  const [slowMo, setSlowMo] = useState(true);
+  const [slowActive, setSlowActive] = useState(false);
+  const control = useRef({ speed, paused, slowMo, holdUntil: 0, slowUntil: 0 });
+  control.current.speed = speed;
+  control.current.paused = paused;
+  control.current.slowMo = slowMo;
+
+  /** Versión de carta de cada jugador del partido (para la carta del goleador). */
+  const versionOf = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of [...home.players, ...away.players]) if (p.versionId) m.set(p.id, p.versionId);
+    return m;
+  }, [home, away]);
+
+  /** Procesa eventos en directo: avisos, cámara lenta, carta del goleador y crónica. */
+  const ingest = (evs: MatchEvent[], live: boolean) => {
+    if (!evs.length) return;
+    const important = evs.filter((e) => e.important);
+    if (important.length) setFeed((f) => [...[...important].reverse(), ...f].slice(0, 60));
+    if (!live) return;
+    const now = performance.now();
+    for (const e of evs) {
+      if (!e.highlight) continue;
+      if (e.playerId) viewRef.current?.spotlight(e.playerId);
+      if (e.highlight.kind === 'goal') {
+        setGoalShow(e);
+        setBanners([]);
+        control.current.holdUntil = now + 3600;
+        continue;
+      }
+      const major = e.highlight.major;
+      setBanners((b) => {
+        // Los avisos importantes se muestran de inmediato; los menores esperan su turno.
+        // Se descartan avisos caducados (más de 2 minutos de partido).
+        const fresh = b.filter((x) => e.minute - x.minute <= 2);
+        const next = major ? [e, ...fresh.filter((x) => x.highlight?.major)] : [...fresh, e];
+        // Cola corta: si se acumulan, se descartan antes los avisos menores.
+        while (next.length > 3) {
+          const minor = next.findIndex((x, i) => i > 0 && !x.highlight?.major);
+          next.splice(minor > 0 ? minor : 1, 1);
+        }
+        return next;
+      });
+      if (major && control.current.slowMo) control.current.slowUntil = now + 3800;
+    }
+  };
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -88,19 +136,18 @@ export default function MatchScreen() {
     const loop = (now: number) => {
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
-      const { paused, speed } = control.current;
-      if (!paused && !engine.finished) engine.step(dt * speed);
+      const c = control.current;
+      const slow = now < c.slowUntil;
+      const hold = now < c.holdUntil;
+      const speedNow = slow ? Math.min(c.speed, 1) * 0.6 : c.speed;
+      if (!c.paused && !hold && !engine.finished) engine.step(dt * speedNow);
       const s = engine.getSnapshot();
       view.update(s);
+      ingestRef.current(engine.drainEvents(), true);
       if (now - lastUi > 110 || engine.finished) {
         lastUi = now;
         setSnap(s);
-        const evs = engine.drainEvents().filter((e) => e.important);
-        if (evs.length) {
-          setFeed((f) => [...evs.reverse(), ...f].slice(0, 40));
-          const goal = evs.find((e) => e.type === 'goal');
-          if (goal) setGoalBanner(goal);
-        }
+        setSlowActive(slow);
       }
       if (!engine.finished) raf = requestAnimationFrame(loop);
     };
@@ -114,10 +161,25 @@ export default function MatchScreen() {
 
   useEffect(() => viewRef.current?.setSelected(selected), [selected]);
   useEffect(() => {
-    if (!goalBanner) return;
-    const t = setTimeout(() => setGoalBanner(null), 2600);
+    if (!goalShow) return;
+    const t = setTimeout(() => setGoalShow(null), 3600);
     return () => clearTimeout(t);
-  }, [goalBanner]);
+  }, [goalShow]);
+  useEffect(() => {
+    if (!banners.length) return;
+    const t = setTimeout(() => setBanners((b) => b.slice(1)), banners.length > 1 ? 2000 : 2800);
+    return () => clearTimeout(t);
+  }, [banners]);
+
+  ingestRef.current = ingest;
+
+  const simulateRest = () => {
+    engine.simulateToEnd();
+    ingest(engine.drainEvents(), false);
+    setBanners([]);
+    setGoalShow(null);
+    setSnap(engine.getSnapshot());
+  };
 
   const setInstruction = (id: string, instr: PlayerInstruction) => {
     engine.setInstruction(id, instr);
@@ -178,7 +240,10 @@ export default function MatchScreen() {
       `${Math.round((snap.stats.home.passesCompleted / Math.max(1, snap.stats.home.passes)) * 100)}%`,
       `${Math.round((snap.stats.away.passesCompleted / Math.max(1, snap.stats.away.passes)) * 100)}%`,
     ],
+    ['Regates', snap.stats.home.dribblesWon, snap.stats.away.dribblesWon],
     ['Entradas ganadas', snap.stats.home.tackles, snap.stats.away.tackles],
+    ['Faltas', snap.stats.home.fouls, snap.stats.away.fouls],
+    ['Amarillas', snap.stats.home.yellowCards, snap.stats.away.yellowCards],
     ['Intercepciones', snap.stats.home.interceptions, snap.stats.away.interceptions],
   ];
 
@@ -214,13 +279,23 @@ export default function MatchScreen() {
 
       <div className="match__layout">
         <div className="match__pitch">
-          <div className="match__canvas" ref={hostRef} />
-          {goalBanner && (
-            <div className="goal-banner" data-side={goalBanner.side}>
-              <span className="t-display">¡GOL!</span>
-              <small className="t-ui">{snap.players.find((p) => p.id === goalBanner.playerId)?.name}</small>
-            </div>
-          )}
+          <div className="match__stage">
+            <div className="match__canvas" ref={hostRef} />
+            {banners[0]?.highlight && (
+              <HighlightBanner key={banners[0].id} event={banners[0]} kit={banners[0].side === 'away' ? kits.away.primary : kits.home.primary} />
+            )}
+            {slowActive && !goalShow && <span className="slowmo-badge t-ui">Cámara lenta</span>}
+            {goalShow && (
+              <GoalCard
+                key={goalShow.id}
+                event={goalShow}
+                versionId={goalShow.playerId ? versionOf.get(goalShow.playerId) : undefined}
+                mine={goalShow.side === 'home'}
+                score={snap.score}
+                assistName={goalShow.otherId ? snap.players.find((p) => p.id === goalShow.otherId)?.name : undefined}
+              />
+            )}
+          </div>
           <div className="match__controls">
             <button className="icon-btn" onClick={() => setPaused((p) => !p)} aria-label={paused ? 'Reanudar' : 'Pausar'} disabled={finished}>
               {paused ? <Icon.Play size={16} /> : <Icon.Pause size={16} />}
@@ -231,7 +306,16 @@ export default function MatchScreen() {
               onChange={(v) => setSpeed(Number(v) as (typeof SPEEDS)[number])}
               options={SPEEDS.map((s) => ({ id: String(s), label: `${s}×` }))}
             />
-            <Button size="sm" icon={<Icon.FastForward size={14} />} disabled={finished} onClick={() => (engine.simulateToEnd(), setSnap(engine.getSnapshot()))}>
+            <button
+              className="toggle t-ui"
+              data-on={slowMo}
+              aria-pressed={slowMo}
+              onClick={() => setSlowMo((v) => !v)}
+              title="Ralentiza la retransmisión durante las jugadas clave"
+            >
+              Cámara lenta en jugadas clave
+            </button>
+            <Button size="sm" icon={<Icon.FastForward size={14} />} disabled={finished} onClick={simulateRest}>
               Simular hasta el final
             </Button>
             <span className="match__spacer" />
@@ -287,9 +371,17 @@ export default function MatchScreen() {
             <h3 className="t-ui">Crónica</h3>
             <ol className="feed">
               {feed.map((e) => (
-                <li key={e.id} data-type={e.type} data-side={e.side ?? 'none'}>
+                <li key={e.id} data-type={e.type} data-side={e.side ?? 'none'} data-hl={e.highlight?.kind}>
                   <span className="feed__min t-num">{e.minute}'</span>
-                  <span>{e.text}</span>
+                  <span>
+                    {e.highlight && e.type === 'highlight' ? (
+                      <>
+                        <b>{e.highlight.title}</b> {e.highlight.detail}
+                      </>
+                    ) : (
+                      e.text
+                    )}
+                  </span>
                 </li>
               ))}
             </ol>
@@ -343,6 +435,79 @@ export default function MatchScreen() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+const HL_CATEGORY: Record<HighlightKind, { label: string; tone: 'attack' | 'setpiece' | 'keeper' | 'card' | 'goal' }> = {
+  goal: { label: 'Gol', tone: 'goal' },
+  throughball: { label: 'Desmarque', tone: 'attack' },
+  longball: { label: 'Juego largo', tone: 'attack' },
+  cross: { label: 'Centro', tone: 'attack' },
+  header: { label: 'Juego aéreo', tone: 'attack' },
+  longshot: { label: 'Disparo', tone: 'attack' },
+  skillrun: { label: 'Regate', tone: 'attack' },
+  oneonone: { label: 'Ocasión', tone: 'attack' },
+  roundkeeper: { label: 'Ocasión', tone: 'attack' },
+  penalty: { label: 'Balón parado', tone: 'setpiece' },
+  freekick: { label: 'Balón parado', tone: 'setpiece' },
+  bigsave: { label: 'Portero', tone: 'keeper' },
+  woodwork: { label: 'Ocasión', tone: 'keeper' },
+  card: { label: 'Árbitro', tone: 'card' },
+};
+
+/** Aviso breve de jugada destacada sobre la retransmisión. */
+function HighlightBanner({ event, kit }: { event: MatchEvent; kit: string }) {
+  const h = event.highlight!;
+  const cat = HL_CATEGORY[h.kind];
+  return (
+    <div className="hl-banner" data-tone={cat.tone} data-major={h.major} role="status" aria-live="polite">
+      <span className="hl-banner__kit" style={{ background: kit }} />
+      <div className="hl-banner__body">
+        <span className="hl-banner__cat t-ui">
+          {cat.label} · {event.minute}'
+        </span>
+        <span className="hl-banner__title t-display">{h.title}</span>
+        <span className="hl-banner__detail">{h.detail}</span>
+      </div>
+      <span className="hl-banner__timer" />
+    </div>
+  );
+}
+
+/** Celebración: carta del goleador destacada. */
+function GoalCard({
+  event,
+  versionId,
+  mine,
+  score,
+  assistName,
+}: {
+  event: MatchEvent;
+  versionId?: string;
+  mine: boolean;
+  score: { home: number; away: number };
+  assistName?: string;
+}) {
+  const how = event.highlight?.detail.split(' · ').slice(1).find((x) => !x.startsWith('asistencia'));
+  return (
+    <div className="goal-show" data-mine={mine} role="status" aria-live="assertive">
+      <div className="goal-show__rays" />
+      <div className="goal-show__inner">
+        <span className="goal-show__title t-display">{mine ? '¡GOL!' : 'GOL DEL RIVAL'}</span>
+        {versionId && (
+          <div className="goal-show__card">
+            <PlayerCard versionId={versionId} size="lg" />
+          </div>
+        )}
+        <span className="goal-show__meta t-ui">
+          {event.minute}'{how ? ` · ${how}` : ''}
+          {assistName ? ` · asistencia de ${assistName}` : ''}
+        </span>
+        <span className="goal-show__score t-display">
+          {score.home} – {score.away}
+        </span>
+      </div>
     </div>
   );
 }

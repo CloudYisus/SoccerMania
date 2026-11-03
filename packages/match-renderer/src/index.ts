@@ -23,6 +23,8 @@ export interface MatchViewOptions {
 export interface MatchView {
   update(snapshot: MatchSnapshot): void;
   setSelected(playerId: string | null): void;
+  /** Resalta a un jugador (jugada destacada): anillos que se expanden. */
+  spotlight(playerId: string): void;
   destroy(): void;
 }
 
@@ -73,6 +75,23 @@ class MatchScene extends Phaser.Scene {
   }
   setSelected(id: string | null) {
     this.selected = id;
+  }
+  spotlight(id: string) {
+    const s = this.sprites.get(id);
+    if (!s || !this.scene.isActive()) return;
+    for (let i = 0; i < 3; i++) {
+      const ring = this.add.circle(0, 0, 12, 0x000000, 0).setStrokeStyle(3, 0xf3d99b, 1).setDepth(19);
+      s.container.add(ring);
+      this.tweens.add({
+        targets: ring,
+        scale: 3.2,
+        alpha: 0,
+        duration: 1100,
+        delay: i * 260,
+        ease: 'Cubic.easeOut',
+        onComplete: () => ring.destroy(),
+      });
+    }
   }
 
   create() {
@@ -200,7 +219,7 @@ class MatchScene extends Phaser.Scene {
     if (f) {
       const t = Math.min(1, Math.max(0, (snap.time - f.start) / f.duration));
       const dist = Math.hypot(f.toX - f.fromX, f.toY - f.fromY);
-      const h = f.kind === 'shot' ? Math.min(6, dist * 0.12) : dist > 22 ? Math.min(14, dist * 0.35) : 0;
+      const h = f.lofted ? Math.min(16, 4 + dist * 0.32) : f.kind === 'shot' ? Math.min(4, dist * 0.1) : 0;
       lift = 4 * h * t * (1 - t);
     }
     this.ballShadow.setPosition(this.bx + lift * 0.6, this.by + 3 + lift * 0.3).setScale(1 - Math.min(0.4, lift / 30));
@@ -230,6 +249,7 @@ export function createMatchView(opts: MatchViewOptions): MatchView {
   return {
     update: (s) => scene.setSnapshot(s),
     setSelected: (id) => scene.setSelected(id),
+    spotlight: (id) => scene.spotlight(id),
     destroy: () => game.destroy(true),
   };
 }

@@ -41,6 +41,8 @@ export interface LineupEntry {
   stats: FaceStats;
   chemistry: number;
   instruction?: PlayerInstruction;
+  /** Versión de carta (sólo presentación: carta del goleador, etc.). */
+  versionId?: string;
 }
 
 /** Construye la configuración de un equipo para el motor a partir de una formación y sus 11 titulares. */
@@ -76,6 +78,7 @@ export function buildTeamSetup(params: {
         attributes: toMatchAttributes(p.stats, p.chemistry),
         chemistry: p.chemistry,
         instruction: p.instruction ?? 'none',
+        versionId: p.versionId,
       };
     }),
   };

@@ -84,3 +84,74 @@ describe('match engine', () => {
     expect(e.drainEvents().some((x) => x.type === 'instruction')).toBe(true);
   });
 });
+
+describe('variedad de jugadas y avisos', () => {
+  const play = (h: ReturnType<typeof syntheticTeam>, a: ReturnType<typeof syntheticTeam>, seed: number) => {
+    const e = new MatchEngine(h, a, seed);
+    e.simulateToEnd();
+    return e;
+  };
+
+  it('produce jugadas destacadas de muchos tipos', () => {
+    const kinds = new Set<string>();
+    for (let seed = 1; seed <= 24; seed++) {
+      for (const ev of play(syntheticTeam('h', 84), syntheticTeam('a', 82), seed).events) if (ev.highlight) kinds.add(ev.highlight.kind);
+    }
+    for (const k of ['goal', 'throughball', 'longball', 'longshot', 'skillrun', 'oneonone', 'freekick', 'penalty', 'header', 'woodwork', 'bigsave', 'card'])
+      expect(kinds.has(k), k).toBe(true);
+  });
+
+  it('los goles llevan aviso y, a veces, asistencia', () => {
+    let goals = 0;
+    let assists = 0;
+    for (let seed = 1; seed <= 10; seed++) {
+      for (const ev of play(syntheticTeam('h', 84), syntheticTeam('a', 80), seed).events) {
+        if (ev.type !== 'goal') continue;
+        goals++;
+        expect(ev.highlight?.kind).toBe('goal');
+        if (ev.otherId) assists++;
+      }
+    }
+    expect(goals).toBeGreaterThan(0);
+    expect(assists).toBeGreaterThan(0);
+  });
+
+  it('la instrucción "Desmarcarse" multiplica los desmarques', () => {
+    const count = (instr: 'makeRuns' | 'holdPosition') => {
+      let runs = 0;
+      for (let seed = 1; seed <= 6; seed++) {
+        const h = syntheticTeam('h', 82);
+        h.players.forEach((p) => p.position !== 'GK' && (p.instruction = instr));
+        runs += play(h, syntheticTeam('a', 82), seed).events.filter((e) => e.type === 'run' && e.side === 'home').length;
+      }
+      return runs;
+    };
+    expect(count('makeRuns')).toBeGreaterThan(count('holdPosition') * 2);
+  });
+
+  it('"Buscar disparos" provoca más disparos lejanos que "Conservar el balón"', () => {
+    const count = (instr: 'shootOnSight' | 'keepPossession') => {
+      let n = 0;
+      for (let seed = 1; seed <= 8; seed++) {
+        const h = syntheticTeam('h', 84);
+        h.players.forEach((p) => p.position !== 'GK' && (p.instruction = instr));
+        n += play(h, syntheticTeam('a', 82), seed).events.filter((e) => e.type === 'shot' && e.side === 'home' && e.text.includes('lejano')).length;
+      }
+      return n;
+    };
+    expect(count('shootOnSight')).toBeGreaterThan(count('keepPossession'));
+  });
+
+  it('las faltas en el área son penalti y fuera generan tiros libres', () => {
+    let penalties = 0;
+    let freeKicks = 0;
+    for (let seed = 1; seed <= 16; seed++) {
+      const e = play(syntheticTeam('h', 82), syntheticTeam('a', 82), seed);
+      penalties += e.events.filter((x) => x.highlight?.kind === 'penalty').length;
+      freeKicks += e.events.filter((x) => x.type === 'out' && x.text.startsWith('Tiro libre')).length;
+      expect(e.getSnapshot().stats.home.fouls + e.getSnapshot().stats.away.fouls).toBeGreaterThan(0);
+    }
+    expect(penalties).toBeGreaterThan(0);
+    expect(freeKicks).toBeGreaterThan(0);
+  });
+});

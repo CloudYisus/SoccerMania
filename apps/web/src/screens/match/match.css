@@ -92,6 +92,9 @@
   gap: 12px;
   min-width: 0;
 }
+.match__stage {
+  position: relative;
+}
 .match__canvas {
   position: relative;
   width: 100%;
@@ -115,53 +118,6 @@
 }
 .match__spacer {
   flex: 1;
-}
-
-.goal-banner {
-  position: absolute;
-  left: 50%;
-  top: 34%;
-  translate: -50% -50%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  pointer-events: none;
-  animation: goal-in 2.6s var(--ease-out) both;
-}
-.goal-banner .t-display {
-  font-size: clamp(70px, 10vw, 140px);
-  background: var(--gold-text);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.8));
-}
-.goal-banner[data-side='away'] .t-display {
-  background: linear-gradient(180deg, #ffffff, #b9c0cc);
-  -webkit-background-clip: text;
-  background-clip: text;
-}
-.goal-banner small {
-  font-size: 22px;
-  letter-spacing: 0.2em;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
-}
-@keyframes goal-in {
-  0% {
-    opacity: 0;
-    transform: scale(1.6);
-  }
-  12% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  80% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    transform: scale(0.96);
-  }
 }
 
 /* Panel lateral */
@@ -404,5 +360,224 @@
   }
   .instr-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ───────────── Avisos de jugada destacada ───────────── */
+.hl-banner {
+  position: absolute;
+  z-index: 5;
+  top: 14px;
+  left: 50%;
+  translate: -50% 0;
+  display: flex;
+  align-items: stretch;
+  min-width: min(420px, 86%);
+  max-width: 92%;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, rgba(16, 18, 24, 0.94), rgba(8, 9, 12, 0.94));
+  box-shadow:
+    inset 0 0 0 1px var(--hl-line),
+    0 18px 40px -16px rgba(0, 0, 0, 0.9),
+    0 0 30px -10px var(--hl-glow);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  animation: hl-in 420ms var(--ease-spring);
+  --hl-accent: var(--gold-1);
+  --hl-line: rgba(243, 217, 155, 0.45);
+  --hl-glow: rgba(243, 217, 155, 0.5);
+}
+.hl-banner[data-tone='setpiece'] {
+  --hl-accent: #ffb547;
+  --hl-line: rgba(255, 181, 71, 0.5);
+  --hl-glow: rgba(255, 160, 50, 0.55);
+}
+.hl-banner[data-tone='keeper'] {
+  --hl-accent: #9fd2ff;
+  --hl-line: rgba(159, 210, 255, 0.45);
+  --hl-glow: rgba(100, 180, 255, 0.5);
+}
+.hl-banner[data-tone='card'] {
+  --hl-accent: #ffe14d;
+  --hl-line: rgba(255, 225, 77, 0.45);
+  --hl-glow: rgba(255, 225, 77, 0.4);
+}
+.hl-banner[data-major='true'] {
+  box-shadow:
+    inset 0 0 0 1.5px var(--hl-accent),
+    0 18px 40px -16px rgba(0, 0, 0, 0.9),
+    0 0 44px -6px var(--hl-glow);
+}
+@keyframes hl-in {
+  from {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.96);
+  }
+}
+.hl-banner__kit {
+  width: 6px;
+  flex: none;
+}
+.hl-banner__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 18px 12px 14px;
+}
+.hl-banner__cat {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--hl-accent);
+}
+.hl-banner__title {
+  font-size: clamp(22px, 2.4vw, 32px);
+  line-height: 1;
+  color: var(--text-0);
+}
+.hl-banner__detail {
+  font-size: 14px;
+  color: var(--text-1);
+}
+.hl-banner__timer {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  background: var(--hl-accent);
+  transform-origin: left;
+  animation: hl-timer 2.8s linear forwards;
+}
+@keyframes hl-timer {
+  to {
+    transform: scaleX(0);
+  }
+}
+.slowmo-badge {
+  position: absolute;
+  z-index: 4;
+  right: 14px;
+  bottom: 14px;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  padding: 5px 10px;
+  border-radius: 3px;
+  color: #0b0c0f;
+  background: var(--gold-1);
+  animation: blink 1s ease-in-out infinite alternate;
+}
+@keyframes blink {
+  from {
+    opacity: 0.55;
+  }
+}
+
+/* ───────────── Celebración: carta del goleador ───────────── */
+.goal-show {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: radial-gradient(60% 70% at 50% 50%, rgba(10, 9, 6, 0.55), rgba(4, 4, 6, 0.88));
+  animation: fade-in 260ms var(--ease-out);
+  pointer-events: none;
+}
+.goal-show__rays {
+  position: absolute;
+  inset: -50%;
+  background: repeating-conic-gradient(from 0deg, rgba(243, 217, 155, 0.16) 0deg 6deg, transparent 6deg 18deg);
+  mask: radial-gradient(circle, #000 0%, transparent 42%);
+  animation: rays 16s linear infinite;
+}
+.goal-show[data-mine='false'] .goal-show__rays {
+  background: repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0.07) 0deg 6deg, transparent 6deg 18deg);
+}
+@keyframes rays {
+  to {
+    rotate: 360deg;
+  }
+}
+.goal-show__inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.goal-show__title {
+  font-size: clamp(44px, 6vw, 84px);
+  line-height: 0.9;
+  background: var(--gold-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.8));
+  animation: goal-title 700ms var(--ease-spring);
+}
+.goal-show[data-mine='false'] .goal-show__title {
+  background: linear-gradient(180deg, #ffffff, #b9c0cc);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+@keyframes goal-title {
+  from {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+.goal-show__card .fu-card {
+  --w: clamp(150px, 15vw, 210px) !important;
+  animation: goal-card 900ms var(--ease-out) both;
+  animation-delay: 120ms;
+}
+@keyframes goal-card {
+  from {
+    transform: perspective(60em) rotateY(-120deg) scale(0.5);
+    opacity: 0;
+  }
+}
+.goal-show__meta {
+  font-size: 14px;
+  letter-spacing: 0.14em;
+  color: var(--text-1);
+  text-align: center;
+}
+.goal-show__score {
+  font-size: 34px;
+  color: var(--text-0);
+}
+
+.feed li[data-type='highlight'] {
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 2px 0 0 var(--gold-2);
+}
+.feed li[data-type='highlight'] b {
+  color: var(--gold-1);
+  font-weight: 700;
+}
+.feed li[data-type='foul'],
+.feed li[data-type='card'] {
+  color: #ffd38a;
+}
+.match__controls .toggle {
+  height: 32px;
+  font-size: 12px;
+}
+@media (max-width: 600px) {
+  .hl-banner__title {
+    font-size: 20px;
+  }
+  .hl-banner__detail {
+    font-size: 12px;
+  }
+  .goal-show__card .fu-card {
+    --w: 120px !important;
+  }
+  .goal-show__title {
+    font-size: 40px;
   }
 }

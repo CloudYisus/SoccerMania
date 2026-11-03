@@ -27,6 +27,8 @@ export interface MatchPlayerSetup {
   attributes: MatchAttributes;
   chemistry: number;
   instruction: PlayerInstruction;
+  /** Referencia de presentación (versión de carta) — el motor no la usa. */
+  versionId?: string;
 }
 
 export interface MatchTeamSetup {
@@ -73,8 +75,17 @@ export interface PlayerState {
   stunned: number;
 }
 
+/** Tipo de golpeo, para estadísticas, avisos y representación. */
+export type PassVariant = 'short' | 'long' | 'through' | 'cross';
+export type ShotMode = 'open' | 'long' | 'header' | 'freekick' | 'penalty' | 'emptynet';
+
 export interface BallFlight {
   kind: 'pass' | 'shot';
+  /** Balón por alto (pases largos, centros, tiros libres): el renderizador lo eleva. */
+  lofted: boolean;
+  variant: PassVariant | ShotMode;
+  /** Probabilidad de gol estimada en el disparo (para detectar paradones). */
+  xg?: number;
   fromX: number;
   fromY: number;
   toX: number;
@@ -82,7 +93,7 @@ export interface BallFlight {
   start: number;
   duration: number;
   /** Resultado decidido por el motor al golpear el balón. */
-  outcome: 'complete' | 'intercepted' | 'loose' | 'goal' | 'saved' | 'miss';
+  outcome: 'complete' | 'intercepted' | 'loose' | 'goal' | 'saved' | 'miss' | 'post';
   targetId: string | null;
   kickerId: string;
 }
@@ -106,6 +117,9 @@ export interface TeamStats {
   passesCompleted: number;
   tackles: number;
   interceptions: number;
+  fouls: number;
+  yellowCards: number;
+  dribblesWon: number;
   possessionTicks: number;
 }
 
@@ -122,7 +136,36 @@ export type MatchEventType =
   | 'out'
   | 'halftime'
   | 'fulltime'
-  | 'instruction';
+  | 'instruction'
+  | 'run'
+  | 'foul'
+  | 'card'
+  | 'highlight';
+
+/** Jugadas que merecen la atención del espectador (aviso en la retransmisión). */
+export type HighlightKind =
+  | 'goal'
+  | 'throughball'
+  | 'longball'
+  | 'cross'
+  | 'header'
+  | 'longshot'
+  | 'skillrun'
+  | 'oneonone'
+  | 'roundkeeper'
+  | 'penalty'
+  | 'freekick'
+  | 'bigsave'
+  | 'woodwork'
+  | 'card';
+
+export interface MatchHighlight {
+  kind: HighlightKind;
+  title: string;
+  detail: string;
+  /** Prioridad alta: no se filtra por enfriamiento y merece cámara lenta. */
+  major: boolean;
+}
 
 export interface MatchEvent {
   id: number;
@@ -134,6 +177,8 @@ export interface MatchEvent {
   text: string;
   /** Eventos que merecen aparecer en la crónica. */
   important: boolean;
+  /** Presente si la jugada merece un aviso en pantalla. */
+  highlight?: MatchHighlight;
 }
 
 export interface MatchSnapshot {

@@ -176,6 +176,7 @@ export function aiToMatchSetup(t: TeamBuild): MatchTeamSetup {
         number: r.version.shirtNumber,
         stats: r.version.stats,
         chemistry: t.slotChemistry[i],
+        versionId: id,
       };
     }),
   });
@@ -200,6 +201,7 @@ export function userToMatchSetup(view: SquadView, name: string, tactics: TeamTac
         stats: r.version.stats,
         chemistry: view.chemistry.players[i]?.value ?? 0,
         instruction: instructions[r.card.id] ?? 'none',
+        versionId: r.version.id,
       };
     }),
   });
