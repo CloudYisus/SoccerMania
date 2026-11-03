@@ -88,6 +88,11 @@
   gap: 24px;
   align-items: start;
 }
+.card-detail__tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
 .card-detail__info h3 {
   margin: 6px 0 14px;
   font-size: 30px;

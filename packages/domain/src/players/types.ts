@@ -1,5 +1,4 @@
 import type { FlagCode } from '../world/types';
-import type { RarityId } from '../cards/rarity';
 
 export type Position =
   | 'GK'
@@ -48,6 +47,11 @@ export interface Player {
   fullName: string;
   nationCode: FlagCode;
   birthYear: number;
+  /**
+   * Icono: leyenda retirada del fútbol. Es una propiedad de la IDENTIDAD, no de
+   * la versión: todas sus cartas lo muestran y aplican la química de Icono.
+   */
+  icon: boolean;
   /** ID del jugador en API-Football (fotografía oficial del proveedor), si existe. */
   apiFootballId?: number | null;
 }
@@ -58,8 +62,10 @@ export interface PlayerVersion {
   playerId: string;
   /** Etiqueta de la versión, p. ej. "Brasil '70" o "Inter 97-98". */
   label: string;
-  /** Temporada o año representado. */
+  /** Temporada o año representado ("1970", "2025-26"). */
   season: string;
+  /** Año de edición de la carta (define su diseño). Derivado de `season`. */
+  year: number;
   /** Club representado en esta versión (determina liga y química). */
   clubId: string;
   /** Nación representada (normalmente la del jugador). */
@@ -68,7 +74,6 @@ export interface PlayerVersion {
   altPositions: Position[];
   rating: number;
   stats: FaceStats;
-  rarity: RarityId;
   shirtNumber: number;
   /** Hito asociado (p. ej. "Campeones del mundo"). */
   milestone?: string;

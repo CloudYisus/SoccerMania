@@ -4,7 +4,7 @@ Este directorio contiene los recursos del juego y la caché del `AssetProvider`.
 
 | Carpeta | Uso | Prioridad |
 |---|---|---|
-| `players/manual/{playerId}.png` | Retratos recortados (PNG con transparencia recomendado) | 1ª para retratos |
+| `players/manual/{playerId}.png` | Retratos (no se usan en las cartas; reservado para pantallas de detalle) | 1ª para retratos |
 | `clubs/manual/{clubId}.png\|svg` | Escudos manuales (clubes históricos, selecciones) | 1ª para escudos |
 | `flags/manual/{code}.svg` | Banderas personalizadas (p. ej. naciones históricas) | 1ª para banderas |
 | `competitions/manual/{leagueId}.png` | Logos de competición | 1ª para logos |

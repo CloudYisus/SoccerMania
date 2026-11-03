@@ -6,7 +6,6 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import pg from 'pg';
 import { demoCatalogData } from '@fu/database';
-import { listRarities } from '@fu/domain';
 import { config, REPO_ROOT } from '../config';
 
 if (!config.databaseUrl) {
@@ -36,21 +35,16 @@ try {
        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT (id) DO NOTHING`,
       [c.id, c.name, c.shortName, c.leagueId, c.nationCode, c.colors.primary, c.colors.secondary, c.apiFootballId, c.theSportsDbName ?? null, !!c.historical],
     );
-  for (const r of listRarities())
-    await client.query(
-      `INSERT INTO rarities(id,label,tier,chemistry_profile,market_multiplier) VALUES($1,$2,$3,$4,$5) ON CONFLICT (id) DO NOTHING`,
-      [r.id, r.label, r.tier, r.chemistryProfile, r.marketMultiplier],
-    );
   for (const p of demoCatalogData.players)
     await client.query(
-      `INSERT INTO players(id,known_as,full_name,nation_code,birth_year) VALUES($1,$2,$3,$4,$5) ON CONFLICT (id) DO NOTHING`,
-      [p.id, p.knownAs, p.fullName, p.nationCode, p.birthYear],
+      `INSERT INTO players(id,known_as,full_name,nation_code,birth_year,icon) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO NOTHING`,
+      [p.id, p.knownAs, p.fullName, p.nationCode, p.birthYear, p.icon],
     );
   for (const v of demoCatalogData.versions)
     await client.query(
-      `INSERT INTO player_versions(id,player_id,label,season,club_id,nation_code,position,alt_positions,rating,stats,rarity_id,shirt_number,milestone)
+      `INSERT INTO player_versions(id,player_id,label,season,club_id,nation_code,position,alt_positions,rating,stats,year,shirt_number,milestone)
        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT (id) DO NOTHING`,
-      [v.id, v.playerId, v.label, v.season, v.clubId, v.nationCode, v.position, v.altPositions, v.rating, JSON.stringify(v.stats), v.rarity, v.shirtNumber, v.milestone ?? null],
+      [v.id, v.playerId, v.label, v.season, v.clubId, v.nationCode, v.position, v.altPositions, v.rating, JSON.stringify(v.stats), v.year, v.shirtNumber, v.milestone ?? null],
     );
   await client.query('COMMIT');
   console.log('Migración y catálogo de demostración aplicados.');

@@ -19,7 +19,7 @@ export interface ChemistryConfig {
   thresholds: { strong: number; medium: number };
   /** Valor numérico de cada enlace al promediar la química individual. */
   linkValue: Record<LinkStrength, number>;
-  /** Regla clásica de Iconos: fuerte con su nación, medio con cualquier otro. */
+  /** Regla clásica de Iconos: fuerte con su nación y, como mínimo, medio con cualquiera. */
   iconLinks: { sameNation: LinkStrength; otherwise: LinkStrength };
   /** Tabla de química individual base (ordenada de mayor a menor minLinkAverage). */
   individualTable: IndividualChemRow[];

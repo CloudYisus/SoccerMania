@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { afterTax, listRarities, marketValue, POSITION_LINE, type PositionLine } from '@fu/domain';
+import { afterTax, marketValue, POSITION_LINE, type PositionLine } from '@fu/domain';
 import { PlayerCard } from '../components/card/PlayerCard';
 import { Icon } from '../components/ui/icons';
 import { Button, Coins, SectionHeader, Segmented } from '../components/ui/ui';
@@ -35,7 +35,7 @@ export function MarketScreen() {
   const { refreshMarket, buyListing, cancelListing } = useGame.getState();
   const go = useUi((s) => s.go);
   const now = useNow();
-  const [rarity, setRarity] = useState('all');
+  const [minRating, setMinRating] = useState('0');
   const [line, setLine] = useState<LineFilter>('all');
   const [maxPrice, setMaxPrice] = useState<number | ''>('');
 
@@ -47,9 +47,9 @@ export function MarketScreen() {
         .filter((l) => l.expiresAt > now)
         .filter((l) => {
           const v = version(l.versionId).version;
-          return (rarity === 'all' || v.rarity === rarity) && (line === 'all' || POSITION_LINE[v.position] === line) && (maxPrice === '' || l.price <= maxPrice);
+          return v.rating >= Number(minRating) && (line === 'all' || POSITION_LINE[v.position] === line) && (maxPrice === '' || l.price <= maxPrice);
         }),
-    [listings, rarity, line, maxPrice, now],
+    [listings, minRating, line, maxPrice, now],
   );
 
   const active = myListings.filter((l) => l.status === 'active');
@@ -72,10 +72,16 @@ export function MarketScreen() {
         <>
           <div className="filters">
             <Segmented
-              label="Rareza"
-              value={rarity}
-              onChange={setRarity}
-              options={[{ id: 'all', label: 'Todas' }, ...listRarities().map((r) => ({ id: r.id as string, label: r.label }))]}
+              label="Valoración mínima"
+              value={minRating}
+              onChange={setMinRating}
+              options={[
+                { id: '0', label: 'Todas' },
+                { id: '83', label: '83+' },
+                { id: '86', label: '86+' },
+                { id: '89', label: '89+' },
+                { id: '92', label: '92+' },
+              ]}
             />
             <Segmented<LineFilter>
               label="Línea"
@@ -112,7 +118,7 @@ export function MarketScreen() {
             <div className="listing-grid">
               {filtered.map((l) => {
                 const r = version(l.versionId);
-                const value = marketValue(r.version.rating, r.version.rarity);
+                const value = marketValue(r.version.rating);
                 const deal = l.price <= value * 0.95;
                 return (
                   <article key={l.id} className="listing">

@@ -136,8 +136,8 @@ function generateMarket(seed: number, now: number): AiListing[] {
   for (let i = 0; i < 28 && pool.length; i++) {
     const idx = rng.int(0, pool.length - 1);
     const v = pool.splice(idx, 1)[0];
-    const value = marketValue(v.rating, v.rarity);
-    const { min, max } = priceRange(v.rating, v.rarity);
+    const value = marketValue(v.rating);
+    const { min, max } = priceRange(v.rating);
     const price = Math.min(max, Math.max(min, Math.round((value * rng.range(0.88, 1.32)) / 50) * 50));
     out.push({ id: `L${seed.toString(36)}-${i}`, versionId: v.id, price, expiresAt: now + rng.int(8, 60) * 60_000 });
   }
@@ -267,7 +267,7 @@ export const useGame = create<GameState>()(
         if (s.myListings.some((l) => l.cardId === cardId && l.status === 'active'))
           return { ok: false, message: 'La carta está en el mercado.' };
         const v = catalog.versions.get(card.versionId)!;
-        const value = quickSellValue(v.rating, v.rarity);
+        const value = quickSellValue(v.rating);
         const cards = { ...s.cards };
         delete cards[cardId];
         set({ cards, coins: s.coins + value });
@@ -282,7 +282,7 @@ export const useGame = create<GameState>()(
         if (squadCardIds(s.squad).includes(cardId)) return { ok: false, message: 'Retira primero la carta de la plantilla.' };
         if (s.myListings.some((l) => l.cardId === cardId && l.status === 'active')) return { ok: false, message: 'Ya está en venta.' };
         const v = catalog.versions.get(card.versionId)!;
-        const range = priceRange(v.rating, v.rarity);
+        const range = priceRange(v.rating);
         if (price < range.min || price > range.max)
           return { ok: false, message: `El precio debe estar entre ${range.min.toLocaleString('es-ES')} y ${range.max.toLocaleString('es-ES')}.` };
         const now = Date.now();
@@ -311,7 +311,7 @@ export const useGame = create<GameState>()(
         const myListings = s.myListings.map((l) => {
           if (l.status !== 'active' || now < l.resolveAt) return l;
           const v = catalog.versions.get(l.versionId)!;
-          const sold = resolveSale(createRng(hashString(l.id)), l.price, marketValue(v.rating, v.rarity));
+          const sold = resolveSale(createRng(hashString(l.id)), l.price, marketValue(v.rating));
           const next: MyListing = { ...l, status: sold ? 'sold' : 'expired' };
           if (sold) {
             coins += afterTax(l.price);

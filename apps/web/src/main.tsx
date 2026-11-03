@@ -10,7 +10,6 @@ import '@fontsource/barlow/500.css';
 import '@fontsource/barlow/600.css';
 import './styles/tokens.css';
 import './styles/base.css';
-import './styles/rarity.css';
 import { App } from './App';
 
 createRoot(document.getElementById('root')!).render(

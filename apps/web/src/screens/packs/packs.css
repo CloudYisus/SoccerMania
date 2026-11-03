@@ -18,7 +18,7 @@
     var(--shadow-2);
   overflow: hidden;
 }
-.pack-offer[data-theme='icon'] {
+.pack-offer[data-theme='classic'] {
   --offer-glow: rgba(255, 245, 220, 0.2);
 }
 .pack-offer[data-theme='welcome'] {
@@ -67,7 +67,42 @@
   width: 10px;
   height: 10px;
   border-radius: 2px;
-  background: var(--r-frame);
+  background: var(--gold-2);
+  opacity: calc(0.3 + var(--o, 0) * 0.175);
+}
+.odds__swatch[data-band='1'] {
+  --o: 1;
+}
+.odds__swatch[data-band='2'] {
+  --o: 2;
+}
+.odds__swatch[data-band='3'] {
+  --o: 3;
+}
+.odds__swatch[data-band='4'] {
+  --o: 4;
+}
+.walkout__star {
+  width: min(40vw, 200px);
+  aspect-ratio: 1;
+  color: #fff3d6;
+  filter: drop-shadow(0 0 30px rgba(255, 236, 190, 0.8));
+  animation: star-in 1.2s var(--ease-spring);
+}
+.walkout__star svg {
+  width: 100%;
+  height: 100%;
+}
+@keyframes star-in {
+  from {
+    transform: scale(0.2) rotate(-160deg);
+    opacity: 0;
+  }
+}
+.walkout__edition {
+  font-size: 15px;
+  letter-spacing: 0.24em;
+  color: var(--e-accent, var(--gold-1));
 }
 .pack-offer__buy {
   margin-top: auto;
@@ -93,7 +128,7 @@
   position: fixed;
   inset: 0;
   background:
-    radial-gradient(60% 50% at 50% 45%, var(--r-glow, rgba(243, 217, 155, 0.25)), transparent 70%),
+    radial-gradient(60% 50% at 50% 45%, var(--e-glow, rgba(243, 217, 155, 0.25)), transparent 70%),
     rgba(3, 4, 6, 0.96);
   backdrop-filter: blur(10px);
 }
@@ -156,7 +191,7 @@
 }
 .walkout__big {
   font-size: clamp(120px, 22vw, 260px);
-  background: var(--r-rating, var(--gold-text));
+  background: var(--e-rating, var(--gold-text));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -194,7 +229,7 @@
   height: 160vmax;
   translate: -50% -50%;
   z-index: -1;
-  background: repeating-conic-gradient(from 0deg, var(--r-glow, rgba(243, 217, 155, 0.25)) 0deg 6deg, transparent 6deg 18deg);
+  background: repeating-conic-gradient(from 0deg, var(--e-glow, rgba(243, 217, 155, 0.25)) 0deg 6deg, transparent 6deg 18deg);
   mask: radial-gradient(circle, #000 0%, transparent 45%);
   animation: rays 18s linear infinite;
 }

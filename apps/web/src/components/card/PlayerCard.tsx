@@ -1,10 +1,11 @@
 import { memo, useRef, type CSSProperties, type MouseEvent } from 'react';
-import { POSITION_LABELS, statEntries, type PlayerCard as Card, type Position } from '@fu/domain';
+import { editionTag, POSITION_LABELS, statEntries, type PlayerCard as Card } from '@fu/domain';
 import { version as resolveVersion } from '../../data/catalog';
 import { FlagArt } from './FlagArt';
 import { ClubCrest } from './ClubCrest';
-import { Portrait } from './Portrait';
+import { editionStyle, getEdition } from './editions';
 import './card.css';
+import './editions.css';
 
 export type CardSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 const WIDTHS: Record<CardSize, number> = { xs: 92, sm: 128, md: 176, lg: 236, xl: 300 };
@@ -20,8 +21,6 @@ export interface PlayerCardProps {
   tilt?: boolean;
   selected?: boolean;
   dim?: boolean;
-  /** Posición que ocupa en la plantilla (para mostrarla si difiere). */
-  slotPosition?: Position;
   className?: string;
   style?: CSSProperties;
   onClick?: () => void;
@@ -29,16 +28,32 @@ export interface PlayerCardProps {
 
 function nameSize(name: string) {
   const n = name.length;
-  if (n <= 7) return '2.35em';
-  if (n <= 10) return '2.05em';
-  if (n <= 13) return '1.7em';
-  return '1.42em';
+  if (n <= 6) return '2.75em';
+  if (n <= 9) return '2.4em';
+  if (n <= 12) return '1.95em';
+  return '1.6em';
+}
+
+/** "Inter" + "2025-26" → "Inter 25/26"; las versiones con año propio se respetan ("México '86"). */
+export function versionLabel(label: string, season: string) {
+  if (label.includes("'")) return label;
+  const m = /^\d{2}(\d{2})-(\d{2})$/.exec(season);
+  return m ? `${label} ${m[1]}/${m[2]}` : `${label} ${season}`;
+}
+
+export function StarIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      <path d="m12 2 2.9 6.2 6.8.8-5 4.7 1.3 6.8L12 17.2l-6 3.3 1.3-6.8-5-4.7 6.8-.8z" fill="currentColor" />
+    </svg>
+  );
 }
 
 /**
  * CardRenderer: compone cualquier carta a partir de sus datos.
- * Capas: marco de rareza → bandera a sangre (tela, tinte, sombra) → retrato →
- * rating/posición → insignia → escudo lateral → nombre, versión y 6 atributos → brillos.
+ * Protagonistas: NACIÓN (bandera a sangre) + CLUB (escudo grande en el centro).
+ * El diseño (marco, foil, brillo, colores) lo define el AÑO de la edición.
+ * Los Iconos (propiedad del futbolista) añaden ribete, sello y destellos.
  */
 export const PlayerCard = memo(function PlayerCard({
   card,
@@ -56,13 +71,16 @@ export const PlayerCard = memo(function PlayerCard({
   const ref = useRef<HTMLDivElement>(null);
   const vid = card?.versionId ?? versionId;
   if (!vid) throw new Error('PlayerCard requiere card o versionId');
-  const { version, player, club, nation, rarity } = resolveVersion(vid);
+  const { version, player, club, nation } = resolveVersion(vid);
+  const edition = getEdition(version.year);
   const position = card?.positionOverride ?? version.position;
   const stats = statEntries(version.stats);
-  // "Inter" → "Inter 25/26"; las versiones históricas ya incluyen su año ("México '86").
-  const seasonTag = /^\d{4}-\d{2}$/.test(version.season) ? ` ${version.season.slice(2, 4)}/${version.season.slice(5)}` : '';
-  const versionLabel = version.label.includes("'") || version.label === 'Icono' ? version.label : `${version.label}${seasonTag}`;
-  const subline = [version.label.toUpperCase().includes(nation.cardName.slice(0, 4)) ? null : nation.cardName, club.name, version.milestone].filter(Boolean).join(' · ');
+  // Línea secundaria sin repetir lo que ya dice la versión ("Inter 25/26" no repite "FC Internazionale").
+  const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const labelN = norm(version.label);
+  const showNation = !labelN.includes(norm(nation.name).slice(0, 4));
+  const showClub = !norm(club.name).includes(labelN.split(' ')[0]) && !labelN.includes(norm(club.shortName).split(' ')[0]);
+  const subline = [showNation ? nation.name : null, showClub ? club.name : null, version.milestone].filter(Boolean).join(' · ');
 
   const onMove = (e: MouseEvent<HTMLDivElement>) => {
     if (!tilt || !ref.current) return;
@@ -79,19 +97,21 @@ export const PlayerCard = memo(function PlayerCard({
     ref.current?.style.setProperty('--ry', '0deg');
   };
 
-  const label = `${player.knownAs}, ${version.label}, ${version.rating} ${POSITION_LABELS[position]}, ${rarity.label}`;
+  const label = `${player.knownAs}${player.icon ? ' (Icono)' : ''}, ${versionLabel(version.label, version.season)}, ${version.rating} ${POSITION_LABELS[position]}, edición ${edition.name} ${version.year}`;
 
   return (
     <div
       ref={ref}
       className={`fu-card ${className ?? ''}`}
-      data-rarity={version.rarity}
+      data-year={version.year}
+      data-motion={edition.motion}
+      data-icon={player.icon}
       data-size={size}
       data-interactive={interactive || !!onClick}
       data-tilt={tilt}
       data-selected={selected ?? false}
       data-dim={dim ?? false}
-      style={{ '--w': width ?? `${WIDTHS[size]}px`, ...style } as CSSProperties}
+      style={{ ...editionStyle(version.year), '--w': width ?? `${WIDTHS[size]}px`, ...style } as CSSProperties}
       onMouseMove={onMove}
       onMouseLeave={onLeave}
       onClick={onClick}
@@ -112,10 +132,11 @@ export const PlayerCard = memo(function PlayerCard({
             <FlagArt code={nation.code} />
           </div>
           <div className="fu-card__tint" />
-          <div className="fu-card__portrait">
-            <Portrait playerId={player.id} colors={club.colors} />
-          </div>
+          <div className="fu-card__foil" data-foil={edition.foil} />
           <div className="fu-card__shade" />
+          <div className="fu-card__crest-hero">
+            <ClubCrest club={club} />
+          </div>
           <div className="fu-card__top">
             <span className="fu-card__rating">{version.rating}</span>
             <span className="fu-card__pos">{POSITION_LABELS[position]}</span>
@@ -127,18 +148,23 @@ export const PlayerCard = memo(function PlayerCard({
               </span>
             )}
           </div>
-          <span className="fu-card__badge">{rarity.badge}</span>
-          <div className="fu-card__crest">
-            <ClubCrest club={club} />
+          <div className="fu-card__edition">
+            <span className="fu-card__year" title={`Edición ${edition.name} ${version.year}`}>
+              {editionTag(version.year)}
+            </span>
           </div>
+          {player.icon && (
+            <div className="fu-card__icon" title="Icono">
+              <StarIcon />
+              <span>ICONO</span>
+              <StarIcon />
+            </div>
+          )}
           <div className="fu-card__info">
             <div className="fu-card__name" style={{ '--name-size': nameSize(player.knownAs) } as CSSProperties}>
               {player.knownAs}
             </div>
-            <div className="fu-card__meta">
-              <span className="fu-card__version">{versionLabel}</span>
-              <span className="fu-card__number">#{version.shirtNumber}</span>
-            </div>
+            <div className="fu-card__version">{versionLabel(version.label, version.season)}</div>
             <div className="fu-card__club">{subline}</div>
             <div className="fu-card__stats">
               {stats.map((s) => (

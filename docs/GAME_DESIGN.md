@@ -22,14 +22,16 @@ compite en partidos simulados que se ven en directo y admiten instrucciones indi
 | Competir | Partido rápido (5 rivales), Divisiones (10 niveles, temporadas de 7 jornadas), Copa (3 rondas, penaltis), Desafíos (6 objetivos evaluados sobre la plantilla real) |
 
 ## Economía
-- Valor de mercado = f(rating, rareza) — exponencial; rango de precios permitido 0,6×–2,5×.
+- Valor de mercado = f(valoración) — exponencial; rango de precios permitido 0,6×–2,5×.
 - Venta rápida ≈ 8 % del valor; impuesto de mercado 5 %.
 - Recompensa por partido según resultado, goles y dificultad. Bonus de fin de temporada.
 - Cartas de sobre/recompensa: leales (+1 química). Compradas: lealtad tras 10 partidos.
 - Cartas iniciales y de recompensa: intransferibles.
 
-## Rarezas
-Común · Especial · Épica · Leyenda · Icono · Única (extensible). Ver `CARD_SYSTEM.md`.
+## Ediciones e Iconos
+No hay rarezas. Cada **año** tiene su propio diseño de carta (todas las versiones de 2022 comparten
+estética), y los **Iconos** —leyendas retiradas— se distinguen en todas sus cartas, sea cual sea
+la versión. Los sobres se definen por bandas de valoración y por épocas. Ver `CARD_SYSTEM.md`.
 
 ## Principios
 - La lógica nunca es decorativa: química, rating, precios y resultados se calculan.

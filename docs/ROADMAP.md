@@ -2,7 +2,7 @@
 
 ## v0.1 — Hecho
 - Identidad visual, navegación FUT de 6 secciones con transiciones y atajos Q/E.
-- CardRenderer con bandera a sangre, retrato, escudo lateral, 6 atributos y 6 rarezas.
+- CardRenderer: bandera de la nación a sangre + escudo del club como protagonista, diseño único por año de edición, distintivo de Icono por futbolista.
 - Plantilla 11 + 7 con química clásica real, 6 formaciones, mánager, tácticas, autocompletar,
   arrastrar y soltar, alternativas con química proyectada.
 - Club, mercado (compra/venta IA con impuesto), sobres con walkout, divisiones, copa, desafíos.
@@ -13,7 +13,7 @@
 
 ## v0.2 — Próximo
 - Verificar IDs con clave real (`sync:teams`, `sync:countries`) y escudos manuales para clubes históricos.
-- Retratos con transparencia y licencia (pipeline de recorte y normalización de proporciones).
+- Escudos oficiales con licencia y escudos manuales para clubes históricos.
 - Persistencia en servidor (PostgreSQL) y cuentas de usuario; mercado real entre usuarios.
 - Cambios de posición (consumibles), suplentes en partido, roles de jugador.
 - Motor: fuera de juego, faltas, juego aéreo, notas de jugador, repeticiones.

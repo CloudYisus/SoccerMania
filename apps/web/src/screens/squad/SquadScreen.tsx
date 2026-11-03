@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type DragEvent } from 'react';
 import {
   calculateChemistry,
   FORMATION_IDS,
-  getRarity,
   INSTRUCTIONS,
   MENTALITY_LABELS,
   positionFit,
@@ -15,7 +14,8 @@ import {
   type ResolvedCard,
   type SlotRef,
 } from '@fu/domain';
-import { PlayerCard } from '../../components/card/PlayerCard';
+import { PlayerCard, versionLabel } from '../../components/card/PlayerCard';
+import { editionStyle, getEdition } from '../../components/card/editions';
 import { Icon } from '../../components/ui/icons';
 import { Button, ChemDots, Drawer, Meter, Panel, Segmented } from '../../components/ui/ui';
 import { MANAGERS, resolve } from '../../data/catalog';
@@ -241,13 +241,13 @@ function SummaryPanel({ view, reserves }: { view: SquadView; reserves: ResolvedC
               className="alt-row"
               draggable
               onDragStart={(e) => e.dataTransfer.setData('text/card', r.card.id)}
-              data-rarity={r.version.rarity}
+              style={editionStyle(r.version.year)}
             >
               <span className="alt-row__rating t-num">{r.version.rating}</span>
               <span className="alt-row__pos t-ui">{POSITION_LABELS[r.position]}</span>
               <span className="alt-row__name">
                 <b>{r.player.knownAs}</b>
-                <small>{r.version.label}</small>
+                <small>{versionLabel(r.version.label, r.version.season)}{r.player.icon ? ' · Icono' : ''}</small>
               </span>
               <span className="alt-row__rarity" />
             </li>
@@ -330,12 +330,13 @@ function SelectedPanel({
             <div className="selected__info">
               <h3 className="t-display">{r.player.knownAs}</h3>
               <span className="muted small">
-                {r.version.label} · {r.club.name} · {r.league.name}
+                {versionLabel(r.version.label, r.version.season)} · {r.club.name} · {r.league.name}
               </span>
               <div className="selected__tags">
-                <span className="tag" data-rarity={r.version.rarity}>
-                  {getRarity(r.version.rarity).label}
+                <span className="tag tag--edition" style={editionStyle(r.version.year)}>
+                  Edición {getEdition(r.version.year).name} {r.version.year}
                 </span>
+                {r.player.icon && <span className="tag tag--icon">★ Icono</span>}
                 {r.card.loyal && <span className="tag tag--gold">Lealtad</span>}
               </div>
               <div className="stat-bars">
@@ -424,7 +425,7 @@ function SelectedPanel({
         <ul className="alt-list">
           {alternatives.map(({ c, projected, delta, fit }) => (
             <li key={c.card.id}>
-              <button className="alt-row" onClick={() => onPlace(c.card.id)} data-rarity={c.version.rarity}>
+              <button className="alt-row" onClick={() => onPlace(c.card.id)} style={editionStyle(c.version.year)}>
                 <span className="alt-row__rating t-num">{c.version.rating}</span>
                 <span className="alt-row__pos t-ui" data-fit={fit}>
                   {POSITION_LABELS[c.position]}
@@ -432,7 +433,8 @@ function SelectedPanel({
                 <span className="alt-row__name">
                   <b>{c.player.knownAs}</b>
                   <small>
-                    {c.version.label} · {c.club.shortName}
+                    {versionLabel(c.version.label, c.version.season)} · {c.club.shortName}
+                    {c.player.icon ? ' · Icono' : ''}
                   </small>
                 </span>
                 {projected !== null && (

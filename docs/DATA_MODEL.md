@@ -5,9 +5,8 @@ Tipos en `packages/domain/src` · Esquema SQL en `packages/database/sql/001_init
 ```
 nations (code PK: ISO alpha-2 / gb-eng…)  ◄── leagues (api_football_id)
                                          ◄── clubs (league_id, colores, api_football_id, thesportsdb_name, historical)
-players (identidad)  ──1:N──►  player_versions (club_id, nation_code, position, alt_positions[],
-                                                rating, stats JSONB, rarity_id, shirt_number, milestone)
-rarities (tier, chemistry_profile, market_multiplier)
+players (identidad, icon)  ──1:N──►  player_versions (club_id, nation_code, position, alt_positions[],
+                                                rating, stats JSONB, year, shirt_number, milestone)
 users ──1:N──► player_cards (version_id, source, loyal, games_played, position_override, untradeable)
 users ──1:N──► squads (formation_id, starters[11], bench[7], manager_id, tactics JSONB, instructions JSONB)
 market_listings (vendedor o IA, version/card, precio, estado, resolves_at)

@@ -1,7 +1,6 @@
 import type { Club, League, Nation } from '../world/types';
 import type { Player, PlayerVersion, Position } from '../players/types';
 import type { PlayerCard } from './types';
-import { getRarity, type RarityDefinition } from './rarity';
 
 /** Catálogo inmutable de entidades del juego, independiente de su origen (seed, BD, API). */
 export interface Catalog {
@@ -46,7 +45,7 @@ export function validateCatalog(c: Catalog): void {
     if (!c.players.has(v.playerId)) throw new Error(`Versión ${v.id}: jugador ${v.playerId} inexistente`);
     if (!c.clubs.has(v.clubId)) throw new Error(`Versión ${v.id}: club ${v.clubId} inexistente`);
     if (!c.nations.has(v.nationCode)) throw new Error(`Versión ${v.id}: nación ${v.nationCode} inexistente`);
-    getRarity(v.rarity);
+    if (!Number.isInteger(v.year) || v.year < 1900 || v.year > 2100) throw new Error(`Versión ${v.id}: año de edición inválido`);
     const expectedKind = v.position === 'GK' ? 'goalkeeper' : 'outfield';
     if (v.stats.kind !== expectedKind) throw new Error(`Versión ${v.id}: estadísticas incompatibles con ${v.position}`);
   }
@@ -60,7 +59,6 @@ export interface ResolvedCard {
   club: Club;
   league: League;
   nation: Nation;
-  rarity: RarityDefinition;
   position: Position;
 }
 
@@ -71,7 +69,7 @@ export function resolveVersion(c: Catalog, versionId: string) {
   const club = c.clubs.get(version.clubId)!;
   const league = c.leagues.get(club.leagueId)!;
   const nation = c.nations.get(version.nationCode)!;
-  return { version, player, club, league, nation, rarity: getRarity(version.rarity) };
+  return { version, player, club, league, nation };
 }
 
 export function resolveCard(c: Catalog, card: PlayerCard): ResolvedCard {

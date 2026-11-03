@@ -7,6 +7,19 @@ describe('catálogo de demostración', () => {
     expect(demoCatalog.versions.size).toBeGreaterThan(50);
   });
 
+  it('el año de edición se deriva de la temporada', () => {
+    expect(demoCatalog.versions.get('pele-70')!.year).toBe(1970);
+    expect(demoCatalog.versions.get('r9-inter98')!.year).toBe(1998);
+    expect(demoCatalog.versions.get('mbappe-rm')!.year).toBe(2026);
+  });
+
+  it('Icono es una propiedad del futbolista: todas sus versiones lo son', () => {
+    expect(demoCatalog.players.get('pele')!.icon).toBe(true);
+    expect(demoCatalog.players.get('messi')!.icon).toBe(false);
+    const r9 = [...demoCatalog.versions.values()].filter((v) => v.playerId === 'r9');
+    expect(r9.every((v) => demoCatalog.players.get(v.playerId)!.icon)).toBe(true);
+  });
+
   it('las versiones no duplican identidades de jugador', () => {
     const ids = [...demoCatalog.players.keys()];
     expect(new Set(ids).size).toBe(ids.length);
@@ -31,9 +44,12 @@ describe('catálogo de demostración', () => {
     for (const o of OPPONENTS) {
       const pool = versions.filter(
         (v) =>
-          (!o.pool.rarities || o.pool.rarities.includes(v.rarity)) &&
+          (o.pool.icons === undefined || demoCatalog.players.get(v.playerId)!.icon === o.pool.icons) &&
           (!o.pool.nations || o.pool.nations.includes(v.nationCode)) &&
-          (!o.pool.maxRating || v.rating <= o.pool.maxRating),
+          (!o.pool.maxRating || v.rating <= o.pool.maxRating) &&
+          (!o.pool.minRating || v.rating >= o.pool.minRating) &&
+          (!o.pool.minYear || v.year >= o.pool.minYear) &&
+          (!o.pool.maxYear || v.year <= o.pool.maxYear),
       );
       const xi = autoAssign(
         getFormation(o.formationId),

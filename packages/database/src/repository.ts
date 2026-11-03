@@ -8,7 +8,7 @@ import type { Catalog, Club, PlayerVersion } from '@fu/domain';
 export interface CatalogRepository {
   getClub(id: string): Promise<Club | null>;
   listClubs(): Promise<Club[]>;
-  listVersions(filter?: { rarity?: string; minRating?: number }): Promise<PlayerVersion[]>;
+  listVersions(filter?: { year?: number; minRating?: number }): Promise<PlayerVersion[]>;
   /** Actualiza el ID de API-Football de un club tras una sincronización. */
   setClubApiFootballId(clubId: string, apiFootballId: number | null): Promise<void>;
 }
@@ -25,9 +25,9 @@ export class InMemoryCatalogRepository implements CatalogRepository {
   async listClubs() {
     return Promise.all([...this.catalog.clubs.keys()].map((id) => this.getClub(id))).then((x) => x.filter((c): c is Club => !!c));
   }
-  async listVersions(filter: { rarity?: string; minRating?: number } = {}) {
+  async listVersions(filter: { year?: number; minRating?: number } = {}) {
     return [...this.catalog.versions.values()].filter(
-      (v) => (!filter.rarity || v.rarity === filter.rarity) && (!filter.minRating || v.rating >= filter.minRating),
+      (v) => (!filter.year || v.year === filter.year) && (!filter.minRating || v.rating >= filter.minRating),
     );
   }
   async setClubApiFootballId(clubId: string, apiFootballId: number | null) {

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { getRarity, PACKS, POSITION_LABELS, type PackDefinition } from '@fu/domain';
-import { PlayerCard } from '../../components/card/PlayerCard';
+import { editionTag, PACKS, POSITION_LABELS, RATING_BANDS, WALKOUT_RATING, type PackDefinition } from '@fu/domain';
+import { PlayerCard, StarIcon } from '../../components/card/PlayerCard';
+import { editionStyle, getEdition } from '../../components/card/editions';
 import { FlagArt } from '../../components/card/FlagArt';
 import { ClubCrest } from '../../components/card/ClubCrest';
 import { Button, Coins, SectionHeader } from '../../components/ui/ui';
@@ -47,11 +48,11 @@ export function PacksScreen() {
                 </button>
                 {oddsOpen === p.id && (
                   <ul className="odds">
-                    {Object.entries(p.odds).map(([r, w]) => (
-                      <li key={r} data-rarity={r}>
-                        <span className="odds__swatch" />
-                        <span>{getRarity(r).label}</span>
-                        <b className="t-num">{(((w ?? 0) / total) * 100).toFixed(1)} %</b>
+                    {RATING_BANDS.filter((b) => p.odds[b.id]).map((b, i) => (
+                      <li key={b.id}>
+                        <span className="odds__swatch" data-band={i} />
+                        <span>Valoración {b.label}</span>
+                        <b className="t-num">{(((p.odds[b.id] ?? 0) / total) * 100).toFixed(1)} %</b>
                       </li>
                     ))}
                   </ul>
@@ -79,13 +80,13 @@ export function PacksScreen() {
   );
 }
 
-type Stage = 'shake' | 'flag' | 'position' | 'club' | 'reveal' | 'summary';
+type Stage = 'shake' | 'flag' | 'position' | 'club' | 'icon' | 'reveal' | 'summary';
 
 function PackOpening({ pack, cardIds, onClose, onAgain }: { pack: PackDefinition; cardIds: string[]; onClose: () => void; onAgain?: () => void }) {
   const cards = useGame((s) => s.cards);
   const go = useUi((s) => s.go);
   const best = cards[cardIds[0]] ? resolve(cards[cardIds[0]]) : null;
-  const walkout = !!best && best.rarity.walkout;
+  const walkout = !!best && (best.version.rating >= WALKOUT_RATING || best.player.icon);
   const [stage, setStage] = useState<Stage>('shake');
 
   useEffect(() => {
@@ -99,6 +100,7 @@ function PackOpening({ pack, cardIds, onClose, onAgain }: { pack: PackDefinition
           ['flag', 1500],
           ['position', 1100],
           ['club', 1300],
+          ...(best?.player.icon ? ([['icon', 1300]] as [Stage, number][]) : []),
           ['reveal', 2200],
         ]
       : [['shake', 1100]];
@@ -106,12 +108,12 @@ function PackOpening({ pack, cardIds, onClose, onAgain }: { pack: PackDefinition
     if (i === -1) return;
     const t = setTimeout(() => setStage(i + 1 < seq.length ? seq[i + 1][0] : 'summary'), seq[i][1]);
     return () => clearTimeout(t);
-  }, [stage, walkout]);
+  }, [stage, walkout, best]);
 
   const skip = () => setStage('summary');
 
   return createPortal(
-    <div className="opening" role="dialog" aria-modal="true" aria-label={`Abriendo ${pack.name}`} data-rarity={best?.version.rarity}>
+    <div className="opening" role="dialog" aria-modal="true" aria-label={`Abriendo ${pack.name}`} style={best ? editionStyle(best.version.year) : undefined}>
       <div className="opening__bg" />
       {stage !== 'summary' && (
         <button className="opening__skip t-ui" onClick={skip}>
@@ -146,11 +148,22 @@ function PackOpening({ pack, cardIds, onClose, onAgain }: { pack: PackDefinition
           <span className="walkout__caption t-display">{best.club.name}</span>
         </div>
       )}
+      {best && stage === 'icon' && (
+        <div className="walkout walkout--icon">
+          <span className="walkout__star">
+            <StarIcon />
+          </span>
+          <span className="walkout__caption t-display">Icono</span>
+        </div>
+      )}
       {best && stage === 'reveal' && (
         <div className="walkout walkout--reveal">
           <div className="walkout__rays" />
           <PlayerCard card={best.card} size="xl" tilt interactive />
           <span className="walkout__caption t-display">{best.player.knownAs}</span>
+          <span className="walkout__edition t-ui">
+            Edición {getEdition(best.version.year).name} {editionTag(best.version.year)}
+          </span>
         </div>
       )}
 

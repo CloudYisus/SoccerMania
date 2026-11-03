@@ -37,15 +37,8 @@ CREATE TABLE IF NOT EXISTS players (
   full_name       TEXT NOT NULL,
   nation_code     TEXT NOT NULL REFERENCES nations(code),
   birth_year      INTEGER NOT NULL,
+  icon            BOOLEAN NOT NULL DEFAULT FALSE,   -- Icono: propiedad de la identidad, aplica a todas sus versiones
   api_football_id INTEGER
-);
-
-CREATE TABLE IF NOT EXISTS rarities (
-  id              TEXT PRIMARY KEY,
-  label           TEXT NOT NULL,
-  tier            INTEGER NOT NULL,
-  chemistry_profile TEXT NOT NULL CHECK (chemistry_profile IN ('standard','icon')),
-  market_multiplier NUMERIC(6,2) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS player_versions (
@@ -59,11 +52,12 @@ CREATE TABLE IF NOT EXISTS player_versions (
   alt_positions   TEXT[] NOT NULL DEFAULT '{}',
   rating          SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 99),
   stats           JSONB NOT NULL,                 -- {kind:'outfield'|'goalkeeper', ...6 valores}
-  rarity_id       TEXT NOT NULL REFERENCES rarities(id),
+  year            SMALLINT NOT NULL,              -- año de edición: define el diseño de la carta
   shirt_number    SMALLINT NOT NULL,
   milestone       TEXT
 );
 CREATE INDEX IF NOT EXISTS player_versions_player_idx ON player_versions(player_id);
+CREATE INDEX IF NOT EXISTS player_versions_year_idx ON player_versions(year);
 
 CREATE TABLE IF NOT EXISTS users (
   id              UUID PRIMARY KEY,

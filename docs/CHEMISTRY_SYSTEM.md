@@ -15,7 +15,7 @@ amarillo (intermedio) si puntos ≥ 1
 rojo     (débil)     si puntos = 0
 ```
 Casos: mismo club → verde (club + liga). Liga + nación → verde. Sólo liga o sólo nación → amarillo.
-**Iconos**: verde con su nación y, como mínimo, amarillo con cualquiera.
+**Iconos** (propiedad del futbolista, válida para todas sus versiones): verde con su nación y, como mínimo, amarillo con cualquiera.
 
 Valor numérico para promediar: verde 2 · amarillo 1 · rojo 0. Los enlaces a slots vacíos valen 0.
 

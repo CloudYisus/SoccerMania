@@ -12,6 +12,7 @@ export interface ChemPlayer {
   nationCode: string;
   position: Position;
   altPositions: readonly Position[];
+  /** El futbolista es Icono (propiedad del Player, no de la versión). */
   isIcon: boolean;
   loyal: boolean;
 }
@@ -49,7 +50,6 @@ export interface ChemistryResult {
 }
 
 const ORDER: LinkStrength[] = ['weak', 'medium', 'strong'];
-const maxStrength = (a: LinkStrength, b: LinkStrength) => (ORDER.indexOf(a) >= ORDER.indexOf(b) ? a : b);
 
 export function evaluateLink(p: ChemPlayer, q: ChemPlayer, cfg: ChemistryConfig = DEFAULT_CHEMISTRY_CONFIG) {
   const club = p.clubId === q.clubId;
@@ -62,7 +62,7 @@ export function evaluateLink(p: ChemPlayer, q: ChemPlayer, cfg: ChemistryConfig 
   const icon = p.isIcon || q.isIcon;
   if (icon) {
     const iconStrength = nation ? cfg.iconLinks.sameNation : cfg.iconLinks.otherwise;
-    strength = maxStrength(strength, iconStrength);
+    if (ORDER.indexOf(iconStrength) > ORDER.indexOf(strength)) strength = iconStrength;
   }
   return { strength, points, shared: { club, league, nation, icon } };
 }

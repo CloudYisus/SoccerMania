@@ -28,11 +28,18 @@ export const CHALLENGES: Challenge[] = [
     evaluate: (v) => ({ current: v.rating, target: 86 }),
   },
   {
-    id: 'legend-xi',
-    title: 'Leyenda en el once',
-    description: 'Alinea al menos 2 cartas Leyenda, Icono o Única.',
+    id: 'icons-xi',
+    title: 'Iconos en el once',
+    description: 'Alinea al menos 2 Iconos como titulares.',
     reward: 3000,
-    evaluate: (v) => ({ current: starters(v).filter((s) => s.rarity.tier >= 3).length, target: 2 }),
+    evaluate: (v) => ({ current: starters(v).filter((s) => s.player.icon).length, target: 2 }),
+  },
+  {
+    id: 'eras',
+    title: 'Todas las épocas',
+    description: 'Titulares de 4 décadas distintas.',
+    reward: 4500,
+    evaluate: (v) => ({ current: new Set(starters(v).map((s) => Math.floor(s.version.year / 10))).size, target: 4 }),
   },
   {
     id: 'conmebol-5',

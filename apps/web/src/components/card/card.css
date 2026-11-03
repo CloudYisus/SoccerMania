@@ -1,10 +1,10 @@
 /* ═════════════ CARD RENDERER ═════════════
-   Todo el interior está en `em`: 1em = ancho/20. Una sola composición escala
-   a cualquier tamaño (miniatura de banquillo → carta de walkout). */
+   Composición común a todas las ediciones; 1em = ancho/20.
+   Capas: marco de edición → bandera (nación) → foil de edición → escudo
+   protagonista (club) → valoración/posición → sello de edición/Icono →
+   nombre + versión centrados → 6 atributos → brillos. */
 .fu-card {
   --w: 200px;
-  --frame: var(--r-frame);
-  --rating-fill: var(--r-rating);
   position: relative;
   width: var(--w);
   aspect-ratio: 5 / 7;
@@ -26,16 +26,16 @@
   cursor: pointer;
 }
 .fu-card[data-interactive='true']:hover {
-  filter: drop-shadow(0 1.4em 1.4em rgba(0, 0, 0, 0.6)) drop-shadow(0 0 0.9em var(--r-glow));
+  filter: drop-shadow(0 1.4em 1.4em rgba(0, 0, 0, 0.6)) drop-shadow(0 0 0.9em var(--e-glow));
 }
 
-/* Marco metálico por rareza */
+/* Marco metálico de la edición */
 .fu-card__frame {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  padding: 0.22em;
-  background: var(--frame);
+  padding: 0.24em;
+  background: var(--e-frame);
   box-shadow:
     0 0 0 0.05em rgba(0, 0, 0, 0.6),
     inset 0 0.06em 0 rgba(255, 255, 255, 0.5);
@@ -46,14 +46,14 @@
   height: 100%;
   overflow: hidden;
   border-radius: 0.38em;
-  background: var(--r-base);
+  background: var(--e-base);
   box-shadow: inset 0 0 0 0.06em rgba(0, 0, 0, 0.7);
 }
 
-/* Bandera como fondo principal */
+/* Nación: bandera a sangre */
 .fu-card__flag {
   position: absolute;
-  inset: 0 0 26% 0;
+  inset: 0 0 30% 0;
   overflow: hidden;
 }
 .fu-card__flag img,
@@ -62,57 +62,73 @@
   height: 100%;
   object-fit: cover;
   transform: scale(1.08);
-  filter: saturate(0.92) contrast(1.05) brightness(0.86);
+  filter: saturate(0.95) contrast(1.05) brightness(0.88);
 }
-/* Tela: pliegues diagonales + grano, para integrar la bandera */
 .fu-card__flag::after {
   content: '';
   position: absolute;
   inset: 0;
-  background:
-    repeating-linear-gradient(118deg, rgba(255, 255, 255, 0.06) 0 0.08em, transparent 0.08em 0.9em),
-    linear-gradient(105deg, rgba(0, 0, 0, 0.35) 0%, rgba(255, 255, 255, 0.1) 32%, rgba(0, 0, 0, 0.28) 56%, rgba(255, 255, 255, 0.08) 78%, rgba(0, 0, 0, 0.3) 100%);
+  background: linear-gradient(105deg, rgba(0, 0, 0, 0.35) 0%, rgba(255, 255, 255, 0.1) 32%, rgba(0, 0, 0, 0.28) 56%, rgba(255, 255, 255, 0.08) 78%, rgba(0, 0, 0, 0.3) 100%);
   mix-blend-mode: overlay;
 }
-/* Tinte de rareza + iluminación cenital */
 .fu-card__tint {
   position: absolute;
   inset: 0;
   background:
     radial-gradient(80% 45% at 50% 0%, rgba(255, 255, 255, 0.22), transparent 70%),
-    var(--r-tint);
+    var(--e-tint);
   mix-blend-mode: soft-light;
 }
-/* Sombra inferior: la bandera se funde con el bloque de información */
 .fu-card__shade {
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(180deg, rgba(0, 0, 0, 0.35) 0%, transparent 18%, transparent 46%, var(--r-base-solid) 74%, var(--r-base-solid) 100%),
-    radial-gradient(120% 70% at 50% 40%, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
   pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.32) 0%, transparent 16%, transparent 44%, var(--e-base) 72%, var(--e-base) 100%),
+    radial-gradient(120% 70% at 50% 38%, transparent 55%, rgba(0, 0, 0, 0.5) 100%);
 }
 
-/* Retrato protagonista */
-.fu-card__portrait {
+/* Club: escudo protagonista en el centro */
+.fu-card__crest-hero {
   position: absolute;
+  z-index: 2;
   left: 50%;
-  bottom: 31%;
-  width: 82%;
-  height: 60%;
-  translate: -48% 0;
-  z-index: 1;
-  filter: drop-shadow(0 0.4em 0.5em rgba(0, 0, 0, 0.55));
+  top: 14%;
+  width: 52%;
+  height: 40%;
+  translate: -50% 0;
+  display: grid;
+  place-items: center;
 }
-.fu-card__portrait img,
-.fu-card__portrait svg {
-  width: 100%;
+.fu-card__crest-hero::before {
+  content: '';
+  position: absolute;
+  inset: -22% -30%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.18) 55%, transparent 100%);
+}
+.fu-card__crest-hero::after {
+  content: '';
+  position: absolute;
+  inset: -8% -14%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--e-glow), transparent 75%);
+  opacity: 0.55;
+  mix-blend-mode: screen;
+}
+.fu-card__crest-hero img,
+.fu-card__crest-hero svg {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
   height: 100%;
   object-fit: contain;
-  object-position: bottom center;
+  filter: drop-shadow(0 0.35em 0.45em rgba(0, 0, 0, 0.65)) drop-shadow(0 0 0.08em rgba(255, 255, 255, 0.35));
 }
 
-/* Rating + posición */
+/* Valoración + posición */
 .fu-card__top {
   position: absolute;
   z-index: 3;
@@ -121,18 +137,18 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.35em;
+  gap: 0.32em;
 }
 .fu-card__rating {
   font-family: var(--font-display);
-  font-size: 4.3em;
+  font-size: 4.2em;
   line-height: 0.86;
   letter-spacing: -0.01em;
-  background: var(--rating-fill);
+  background: var(--e-rating);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  filter: drop-shadow(0 0.04em 0.05em rgba(0, 0, 0, 0.7));
+  filter: drop-shadow(0 0.04em 0.05em rgba(0, 0, 0, 0.75));
 }
 .fu-card__pos {
   font-family: var(--font-ui);
@@ -143,123 +159,115 @@
   padding: 0.22em 0.45em 0.18em;
   border-radius: 0.2em;
   color: var(--text-0);
-  background: rgba(8, 9, 12, 0.72);
-  box-shadow: inset 0 0 0 0.07em var(--r-accent);
-  backdrop-filter: blur(4px);
+  background: rgba(8, 9, 12, 0.74);
+  box-shadow: inset 0 0 0 0.07em var(--e-accent);
 }
 .fu-card__alt {
   display: flex;
-  gap: 0.2em;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1em;
   font-family: var(--font-ui);
   font-weight: 700;
   font-size: 0.72em;
   color: var(--text-1);
+  text-shadow: 0 0.05em 0.1em rgba(0, 0, 0, 0.8);
 }
 
-/* Insignia de rareza */
-.fu-card__badge {
+/* Sello de edición (año) */
+.fu-card__edition {
   position: absolute;
   z-index: 3;
-  top: 0.95em;
+  top: 0.85em;
   right: 0.8em;
-  font-family: var(--font-ui);
-  font-weight: 800;
-  font-size: 0.85em;
-  letter-spacing: 0.14em;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35em;
+}
+.fu-card__year {
+  font-family: var(--font-display);
+  font-size: 1.35em;
   line-height: 1;
-  padding: 0.32em 0.55em 0.28em 0.65em;
-  border-radius: 0.15em;
-  color: var(--r-badge-text);
-  background: var(--r-badge);
-  box-shadow: 0 0.15em 0.4em rgba(0, 0, 0, 0.45);
+  padding: 0.2em 0.4em 0.16em;
+  border-radius: 0.16em;
+  color: #0b0c0f;
+  background: var(--e-rating);
+  box-shadow:
+    inset 0 0 0 0.06em rgba(0, 0, 0, 0.25),
+    0 0.12em 0.35em rgba(0, 0, 0, 0.5);
 }
 
-/* Escudo lateral */
-.fu-card__crest {
-  position: absolute;
-  z-index: 2;
-  right: 0.75em;
-  top: 29%;
-  width: 4.1em;
-  height: 4.1em;
-  display: grid;
-  place-items: center;
-  filter: drop-shadow(0 0.18em 0.25em rgba(0, 0, 0, 0.6));
-}
-.fu-card__crest img,
-.fu-card__crest svg {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-/* Bloque de información */
+/* Bloque de información centrado */
 .fu-card__info {
   position: absolute;
   z-index: 3;
   left: 0;
   right: 0;
   bottom: 0;
-  height: 34%;
+  height: 40%;
   padding: 0 0.9em 0.7em;
   display: flex;
   flex-direction: column;
-}
-.fu-card__info::before {
-  content: '';
-  display: block;
-  height: 0.08em;
-  margin: 0 0.1em 0.45em;
-  background: linear-gradient(90deg, transparent, var(--r-accent) 20%, var(--r-accent) 80%, transparent);
-  opacity: 0.8;
+  align-items: center;
+  text-align: center;
 }
 .fu-card__name {
+  position: relative;
+  max-width: 100%;
   font-family: var(--font-display);
-  font-size: var(--name-size, 2.15em);
+  font-size: var(--name-size, 2.6em);
   line-height: 1;
   text-transform: uppercase;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.015em;
   color: var(--text-0);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: clip;
-  text-shadow: 0 0.06em 0.1em rgba(0, 0, 0, 0.6);
-}
-.fu-card__meta {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5em;
-  margin-top: 0.3em;
-  font-family: var(--font-ui);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  white-space: nowrap;
+  text-shadow:
+    0 0.06em 0.12em rgba(0, 0, 0, 0.7),
+    0 0 0.6em rgba(0, 0, 0, 0.35);
 }
 .fu-card__version {
-  font-size: 0.86em;
-  color: var(--text-0);
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  width: 100%;
+  margin-top: 0.3em;
+  font-family: var(--font-ui);
+  font-weight: 800;
+  font-size: 1.02em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--e-accent);
+  white-space: nowrap;
 }
-.fu-card__number {
-  font-size: 0.86em;
-  color: var(--text-2);
+.fu-card__version::before,
+.fu-card__version::after {
+  content: '';
+  flex: 1;
+  height: 0.07em;
+  background: linear-gradient(90deg, transparent, var(--e-accent));
+  opacity: 0.75;
+}
+.fu-card__version::after {
+  background: linear-gradient(270deg, transparent, var(--e-accent));
 }
 .fu-card__club {
+  max-width: 100%;
+  margin-top: 0.3em;
   font-family: var(--font-ui);
   font-weight: 600;
-  font-size: 0.66em;
-  letter-spacing: 0.06em;
+  font-size: 0.62em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-top: 0.15em;
 }
 .fu-card__stats {
+  width: 100%;
   margin-top: auto;
   display: grid;
   grid-template-columns: repeat(6, 1fr);
@@ -274,27 +282,27 @@
 .fu-card__stat b {
   font-family: var(--font-ui);
   font-weight: 800;
-  font-size: 1.22em;
+  font-size: 1.2em;
   font-variant-numeric: tabular-nums;
   color: var(--text-0);
 }
 .fu-card__stat span {
   font-family: var(--font-ui);
   font-weight: 700;
-  font-size: 0.58em;
+  font-size: 0.56em;
   letter-spacing: 0.08em;
   color: var(--text-2);
   margin-top: 0.2em;
 }
 .fu-card__stat[data-hi='true'] b {
-  color: var(--r-hi);
+  color: var(--e-accent);
 }
 
-/* Brillo especular que sigue al cursor */
+/* Brillo especular + barrido */
 .fu-card__shine {
   position: absolute;
   inset: 0;
-  z-index: 4;
+  z-index: 5;
   pointer-events: none;
   background: radial-gradient(40% 30% at var(--mx, 30%) var(--my, 20%), rgba(255, 255, 255, 0.28), transparent 70%);
   mix-blend-mode: soft-light;
@@ -304,11 +312,10 @@
 .fu-card[data-interactive='true']:hover .fu-card__shine {
   opacity: 1;
 }
-/* Barrido de luz */
 .fu-card__sweep {
   position: absolute;
   inset: -20%;
-  z-index: 4;
+  z-index: 5;
   pointer-events: none;
   background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.22) 48%, rgba(255, 255, 255, 0.04) 52%, transparent 60%);
   translate: -70% 0;
@@ -330,37 +337,31 @@
   filter: grayscale(0.6) brightness(0.55);
 }
 
-/* Tamaños compactos: se ocultan detalles secundarios */
+/* Tamaño compacto (campo, banquillo) */
 .fu-card[data-size='xs'] .fu-card__club,
 .fu-card[data-size='xs'] .fu-card__alt,
+.fu-card[data-size='xs'] .fu-card__stats,
 .fu-card[data-size='sm'] .fu-card__alt {
   display: none;
 }
-.fu-card[data-size='xs'] .fu-card__stats {
-  display: none;
+.fu-card[data-size='xs'] .fu-card__flag {
+  inset: 0 0 22% 0;
+}
+.fu-card[data-size='xs'] .fu-card__crest-hero {
+  top: 15%;
+  height: 48%;
+  width: 60%;
 }
 .fu-card[data-size='xs'] .fu-card__info {
-  height: 26%;
-  justify-content: flex-start;
-}
-.fu-card[data-size='xs'] .fu-card__portrait {
-  bottom: 24%;
-  height: 64%;
-}
-.fu-card[data-size='xs'] .fu-card__flag {
-  inset: 0 0 18% 0;
+  height: 30%;
+  justify-content: flex-end;
+  padding-bottom: 1em;
 }
 .fu-card[data-size='xs'] .fu-card__name {
-  --name-size: 2.6em !important;
+  font-size: calc(var(--name-size, 2.6em) * 1.2);
 }
-.fu-card[data-size='xs'] .fu-card__meta {
-  font-size: 1.15em;
-}
-.fu-card[data-size='xs'] .fu-card__number {
-  display: none;
-}
-.fu-card[data-size='xs'] .fu-card__badge {
-  display: none;
+.fu-card[data-size='xs'] .fu-card__version {
+  font-size: 1.3em;
 }
 .fu-card[data-size='xs'] .fu-card__rating {
   font-size: 5em;
@@ -368,12 +369,11 @@
 .fu-card[data-size='xs'] .fu-card__pos {
   font-size: 1.4em;
 }
-.fu-card[data-size='xs'] .fu-card__crest {
-  width: 5em;
-  height: 5em;
+.fu-card[data-size='xs'] .fu-card__year {
+  font-size: 1.7em;
 }
 
-/* Placeholders */
+/* Placeholder de bandera */
 .flag-fallback {
   display: grid;
   place-items: center;

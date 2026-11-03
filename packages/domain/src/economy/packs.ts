@@ -1,5 +1,5 @@
 import type { Rng } from '@fu/shared';
-import { getRarity, type RarityId } from '../cards/rarity';
+import { ratingBand, type RatingBandId } from '../cards/edition';
 import type { PlayerVersion } from '../players/types';
 
 export interface PackDefinition {
@@ -10,13 +10,13 @@ export interface PackDefinition {
   /** Sólo se puede reclamar una vez (sobre de bienvenida). */
   oneTime?: boolean;
   size: number;
-  /** Probabilidades por rareza para cada carta (se normalizan). */
-  odds: Partial<Record<RarityId, number>>;
-  /** Rareza mínima garantizada en al menos una carta. */
-  guaranteed?: { rarity: RarityId; count: number };
-  /** Rating mínimo de las cartas del sobre. */
-  minRating?: number;
-  theme: 'gold' | 'premium' | 'legend' | 'icon' | 'welcome';
+  /** Probabilidades por banda de valoración para cada carta (se normalizan). */
+  odds: Partial<Record<RatingBandId, number>>;
+  /** Al menos `count` cartas con valoración ≥ `minRating`. */
+  guaranteed?: { minRating: number; count: number };
+  /** Filtro del contenido del sobre. */
+  pool?: { minRating?: number; maxYear?: number; minYear?: number };
+  theme: 'welcome' | 'gold' | 'premium' | 'elite' | 'classic';
 }
 
 export const PACKS: PackDefinition[] = [
@@ -27,51 +27,52 @@ export const PACKS: PackDefinition[] = [
     price: 0,
     oneTime: true,
     size: 5,
-    odds: { common: 55, special: 35, epic: 10 },
-    guaranteed: { rarity: 'special', count: 1 },
+    odds: { b75: 45, b83: 40, b86: 15 },
+    guaranteed: { minRating: 85, count: 1 },
     theme: 'welcome',
   },
   {
     id: 'gold',
     name: 'Sobre Oro',
-    tagline: '6 cartas · al menos una Especial',
+    tagline: '6 cartas · al menos una de 85+',
     price: 5000,
     size: 6,
-    odds: { common: 58, special: 30, epic: 9, legend: 2.4, icon: 0.5, unique: 0.1 },
-    guaranteed: { rarity: 'special', count: 1 },
+    odds: { b75: 50, b83: 32, b86: 13, b89: 4.2, b92: 0.8 },
+    guaranteed: { minRating: 85, count: 1 },
     theme: 'gold',
   },
   {
     id: 'premium',
     name: 'Sobre Premium',
-    tagline: '9 cartas · 2 Especiales o superior',
+    tagline: '9 cartas · dos de 86+ garantizadas',
     price: 12500,
     size: 9,
-    odds: { common: 45, special: 36, epic: 13, legend: 4.5, icon: 1.2, unique: 0.3 },
-    guaranteed: { rarity: 'special', count: 2 },
-    minRating: 78,
+    odds: { b75: 32, b83: 38, b86: 21, b89: 7.3, b92: 1.7 },
+    guaranteed: { minRating: 86, count: 2 },
+    pool: { minRating: 78 },
     theme: 'premium',
   },
   {
-    id: 'legend',
-    name: 'Sobre Leyendas',
-    tagline: '3 cartas · Leyenda garantizada',
+    id: 'elite',
+    name: 'Sobre Élite',
+    tagline: '3 cartas · una de 90+ garantizada',
     price: 50000,
     size: 3,
-    odds: { special: 50, epic: 30, legend: 16, icon: 3, unique: 1 },
-    guaranteed: { rarity: 'legend', count: 1 },
-    minRating: 84,
-    theme: 'legend',
+    odds: { b86: 55, b89: 33, b92: 12 },
+    guaranteed: { minRating: 90, count: 1 },
+    pool: { minRating: 86 },
+    theme: 'elite',
   },
   {
-    id: 'icon',
-    name: 'Sobre Icono',
-    tagline: '1 carta · Icono garantizado',
+    id: 'classic',
+    name: 'Sobre Clásicos',
+    tagline: '1 carta · edición histórica 90+',
     price: 110000,
     size: 1,
-    odds: { icon: 100 },
-    guaranteed: { rarity: 'icon', count: 1 },
-    theme: 'icon',
+    odds: { b89: 60, b92: 40 },
+    guaranteed: { minRating: 90, count: 1 },
+    pool: { minRating: 90, maxYear: 2010 },
+    theme: 'classic',
   },
 ];
 
@@ -81,33 +82,39 @@ export function getPack(id: string): PackDefinition {
   return p;
 }
 
+/** Versiones que pueden salir en un sobre. */
+export function packPool(pack: PackDefinition, pool: readonly PlayerVersion[]): PlayerVersion[] {
+  const f = pack.pool ?? {};
+  return pool.filter(
+    (v) =>
+      (f.minRating === undefined || v.rating >= f.minRating) &&
+      (f.maxYear === undefined || v.year <= f.maxYear) &&
+      (f.minYear === undefined || v.year >= f.minYear),
+  );
+}
+
 /**
  * Abre un sobre: devuelve versiones (no cartas) ordenadas de mayor a menor
- * exclusividad. La creación de PlayerCard con IDs se hace en la capa de estado.
+ * valoración. La creación de PlayerCard con IDs se hace en la capa de estado.
  */
 export function openPack(rng: Rng, pack: PackDefinition, pool: readonly PlayerVersion[]): PlayerVersion[] {
-  const eligible = pool.filter((v) => !pack.minRating || v.rating >= pack.minRating);
-  const byRarity = new Map<RarityId, PlayerVersion[]>();
+  const eligible = packPool(pack, pool);
+  const byBand = new Map<RatingBandId, PlayerVersion[]>();
   for (const v of eligible) {
-    const list = byRarity.get(v.rarity) ?? [];
+    const b = ratingBand(v.rating);
+    const list = byBand.get(b) ?? [];
     list.push(v);
-    byRarity.set(v.rarity, list);
+    byBand.set(b, list);
   }
-  const rarities = (Object.keys(pack.odds) as RarityId[]).filter((r) => (byRarity.get(r)?.length ?? 0) > 0);
-  if (rarities.length === 0) throw new Error(`El sobre ${pack.id} no tiene cartas elegibles`);
-
-  const drawFrom = (rarity: RarityId): PlayerVersion => {
-    const list = byRarity.get(rarity)!;
-    // Dentro de una rareza, las cartas de mayor rating son algo menos frecuentes.
-    return rng.weighted(list, (v) => Math.pow(0.9, v.rating - 75));
-  };
-  const drawRarity = () => rng.weighted(rarities, (r) => pack.odds[r] ?? 0);
+  const bands = (Object.keys(pack.odds) as RatingBandId[]).filter((b) => (byBand.get(b)?.length ?? 0) > 0);
+  if (bands.length === 0) throw new Error(`El sobre ${pack.id} no tiene cartas elegibles`);
 
   const result: PlayerVersion[] = [];
   const used = new Set<string>();
-  const take = (rarity: RarityId) => {
+  const takeFrom = (list: PlayerVersion[]) => {
     for (let attempt = 0; attempt < 8; attempt++) {
-      const v = drawFrom(rarity);
+      // Dentro de una banda, las cartas de mayor valoración son algo menos frecuentes.
+      const v = rng.weighted(list, (x) => Math.pow(0.9, x.rating - 75));
       if (!used.has(v.playerId) || attempt === 7) {
         used.add(v.playerId);
         result.push(v);
@@ -117,13 +124,13 @@ export function openPack(rng: Rng, pack: PackDefinition, pool: readonly PlayerVe
   };
 
   if (pack.guaranteed) {
-    const minTier = getRarity(pack.guaranteed.rarity).tier;
-    const upgraded = rarities.filter((r) => getRarity(r).tier >= minTier);
-    for (let i = 0; i < pack.guaranteed.count; i++) {
-      take(rng.weighted(upgraded, (r) => pack.odds[r] ?? 0));
-    }
+    const top = eligible.filter((v) => v.rating >= pack.guaranteed!.minRating);
+    if (top.length === 0) throw new Error(`El sobre ${pack.id} no puede cumplir su garantía`);
+    for (let i = 0; i < pack.guaranteed.count; i++) takeFrom(top);
   }
-  while (result.length < pack.size) take(drawRarity());
-
-  return result.sort((a, b) => getRarity(b.rarity).tier - getRarity(a.rarity).tier || b.rating - a.rating);
+  while (result.length < pack.size) {
+    const band = rng.weighted(bands, (b) => pack.odds[b] ?? 0);
+    takeFrom(byBand.get(band)!);
+  }
+  return result.sort((a, b) => b.rating - a.rating);
 }

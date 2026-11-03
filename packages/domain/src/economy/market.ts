@@ -1,13 +1,11 @@
 import type { Rng } from '@fu/shared';
-import { getRarity, type RarityId } from '../cards/rarity';
 
 /** Impuesto clásico sobre ventas en el mercado. */
 export const MARKET_TAX = 0.05;
 
-/** Valor de referencia de una carta según rating y rareza (economía del juego, no precios reales). */
-export function marketValue(rating: number, rarity: RarityId): number {
-  const base = 220 * Math.pow(1.32, Math.max(0, rating - 70));
-  return roundPrice(base * getRarity(rarity).marketMultiplier);
+/** Valor de referencia de una carta según su valoración (economía del juego, no precios reales). */
+export function marketValue(rating: number): number {
+  return roundPrice(260 * Math.pow(1.36, Math.max(0, rating - 70)));
 }
 
 /** Redondeo a los escalones de precio clásicos. */
@@ -21,13 +19,13 @@ export interface PriceRange {
   max: number;
 }
 
-export function priceRange(rating: number, rarity: RarityId): PriceRange {
-  const v = marketValue(rating, rarity);
+export function priceRange(rating: number): PriceRange {
+  const v = marketValue(rating);
   return { min: roundPrice(v * 0.6), max: roundPrice(v * 2.5) };
 }
 
-export function quickSellValue(rating: number, rarity: RarityId): number {
-  return Math.max(50, Math.round((marketValue(rating, rarity) * 0.08) / 10) * 10);
+export function quickSellValue(rating: number): number {
+  return Math.max(50, Math.round((marketValue(rating) * 0.08) / 10) * 10);
 }
 
 export function afterTax(price: number): number {

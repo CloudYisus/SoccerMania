@@ -45,7 +45,7 @@ function chemFor(formationId: FormationId, versionIds: string[]) {
         nationCode: r.nation.code,
         position: r.version.position,
         altPositions: r.version.altPositions,
-        isIcon: r.rarity.chemistryProfile === 'icon',
+        isIcon: r.player.icon,
         loyal: true,
       };
     }),
@@ -96,10 +96,12 @@ export function buildOpponent(id: string): TeamBuild {
   if (!def) throw new Error(`Rival desconocido ${id}`);
   const pool = allVersions.filter(
     (v) =>
-      (!def.pool.rarities || def.pool.rarities.includes(v.rarity)) &&
+      (def.pool.icons === undefined || catalog.players.get(v.playerId)!.icon === def.pool.icons) &&
       (!def.pool.nations || def.pool.nations.includes(v.nationCode)) &&
       (!def.pool.maxRating || v.rating <= def.pool.maxRating) &&
-      (!def.pool.minRating || v.rating >= def.pool.minRating),
+      (!def.pool.minRating || v.rating >= def.pool.minRating) &&
+      (!def.pool.minYear || v.year >= def.pool.minYear) &&
+      (!def.pool.maxYear || v.year <= def.pool.maxYear),
   );
   const tactics: TeamTactics = {
     ...DEFAULT_TACTICS,

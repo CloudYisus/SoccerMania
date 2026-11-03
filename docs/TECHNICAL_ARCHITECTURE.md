@@ -49,7 +49,8 @@ Cada `AssetRecord` guarda: id, tipo, entidad, proveedor, URL de origen, ruta loc
 content-type, estado (`ready|failed|missing|pending`), error, fecha, nota de licencia e intentos.
 Los fallos no se reintentan hasta `ASSET_RETRY_HOURS`. El servidor precalienta la caché al
 arrancar. El cliente añade un respaldo propio: banderas `flag-icons` empaquetadas por Vite,
-escudos provisionales generados (SVG con colores del club) y siluetas de jugador.
+escudos provisionales generados (SVG con colores del club). Las cartas no muestran retratos:
+el `PlayerPortraitProvider` se mantiene para futuras pantallas de detalle.
 
 Mapeo de banderas especiales (`data-providers/src/assets/flag-codes.ts`): `gb-eng`, `gb-sct`,
 `gb-wls`, `gb-nir`, `xk`; ampliable con `assets/flags/api-football-codes.json`.

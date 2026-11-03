@@ -3,47 +3,81 @@
 ## Modelo: Player → PlayerVersion → PlayerCard
 | Entidad | Qué representa | Ejemplo |
 |---|---|---|
-| `Player` | Identidad única del futbolista (nunca se duplica) | Ronaldo Nazário |
-| `PlayerVersion` | Etapa/temporada: club, nación, posición, rating, 6 atributos, rareza, dorsal, hito | `r9-psv96` (Única), `r9-inter98` (Leyenda), `r9-brasil02` (Leyenda), `r9-icon` (Icono) |
+| `Player` | Identidad única del futbolista. Incluye `icon` (leyenda retirada) | Ronaldo Nazário · Icono |
+| `PlayerVersion` | Etapa/temporada: club, nación, posición, valoración, 6 atributos, dorsal, hito y **año de edición** (`year`, derivado de `season`) | `r9-psv96` (1996), `r9-inter98` (1998), `r9-brasil02` (2002), `r9-rm03` (2003) |
 | `PlayerCard` | Edición coleccionable del usuario: origen, lealtad, partidos, cambio de posición, intransferible | `c1a` |
 
 Regla de plantilla: un mismo `Player` no puede aparecer dos veces (aunque sean versiones distintas).
 
-## Composición del CardRenderer (`apps/web/src/components/card/PlayerCard.tsx`)
-Todas las medidas internas están en `em` (1em = ancho/20) → una sola composición para cualquier
-tamaño (`xs` en el campo, `xl` en el walkout). Capas, de fondo a frente:
-1. **Marco** metálico de la rareza (gradiente/conic animado en Única).
-2. **Bandera a sangre** (≈ 74 % superior) con tela (pliegues diagonales + grano), tinte de
-   rareza en `soft-light` e iluminación cenital; punto focal por país (`FLAG_FOCUS`).
-3. **Retrato** recortado en primer plano, anclado abajo, con sombra propia.
-4. **Sombra** que funde bandera → bloque de información.
-5. **Rating** (Anton, relleno de gradiente por rareza) + **posición** + posiciones alternativas.
-6. **Insignia** de rareza (arriba a la derecha).
-7. **Escudo** en el lateral derecho (4,1em) con sombra.
-8. **Nombre** con tamaño adaptativo, **versión/temporada**, dorsal, nación·club·hito.
-9. **Seis atributos** (RIT TIR PAS REG DEF FÍS · porteros EST MAN SAQ REF VEL COL);
-   los ≥ 90 se destacan con el color de la rareza.
-10. **Brillos**: reflejo especular que sigue al cursor, barrido de luz, inclinación 3D.
+## Sin rarezas: diseño por año de edición
+Como en FUT, el diseño lo define la **edición (año)**: todas las versiones de 2022 comparten
+estética, todas las de 1970 la suya, etc. `seasonToYear`: `"1970"` → 1970 · `"1997-98"` → 1998 ·
+`"2025-26"` → 2026.
 
-Estados: `selected`, `dim`, `interactive`, `tilt`. Tamaño `xs` oculta atributos e insignia.
+Cada edición (`apps/web/src/components/card/editions.ts`) define: nombre, marco metálico, color
+base, tinte de la bandera, relleno de la valoración, acento, halo, **patrón de foil** (24 patrones:
+puntos, rayas, rayos, chevrones, hexágonos, cristal, carbono, aurora…) y **movimiento**
+(`sweep` barrido de luz, `holo` marco holográfico, `pulse` halo latente). Composición, tipografía y
+proporciones son comunes a todas → todas se ven del mismo juego.
 
-## Rarezas (extensibles)
-Dominio (`packages/domain/src/cards/rarity.ts`): id, etiqueta, orden (`tier`), perfil de química,
-multiplicador de mercado y si merece walkout. Visual (`apps/web/src/styles/rarity.css`): variables
-`--r-frame`, `--r-base`, `--r-tint`, `--r-rating`, `--r-accent`, `--r-badge`, `--r-glow`, `--r-hi`.
-
-| Rareza | Acabado | Efecto |
+| Año | Edición | Rasgos |
 |---|---|---|
-| Común | Acero satinado | — |
-| Especial | Azul eléctrico | Brillo frío al hover |
-| Épica | Platino/violeta | Walkout |
-| Leyenda | Oro metálico, rating dorado | Walkout |
-| Icono | Marfil/champán | Barrido de luz continuo, destellos, química de Icono |
-| Única | Holográfica iridiscente | Marco conic animado, barrido prismático |
+| 1954 | Sepia | Bronce envejecido, foil de puntos |
+| 1962 | Esmeralda | Verde y oro, raya diplomática |
+| 1966 | Tweed | Granate y crema, trama cruzada |
+| 1970 | Sol | Oro anaranjado, rayos de sol, halo latente |
+| 1972 | Mandarina | Naranja, franjas horizontales |
+| 1974 | Cromo | Acero cromado con acento verde, chevrones, barrido |
+| 1986 | Azteca | Turquesa y oro, zigzag |
+| 1987 | Vesubio | Celeste, ondas |
+| 1994 | Neón | Magenta y turquesa, confeti |
+| 1996 | Holograma | Marco holográfico animado, líneas de escaneo |
+| 1998 | Tricolor | Azul, blanco y rojo, diagonales |
+| 2002 | Sol Naciente | Rojo y oro, rayos, halo latente |
+| 2003 | Platino | Platino cepillado, barrido |
+| 2004 | Bronce | Bronce, hexágonos |
+| 2005 | Grana | Grana y azul, franjas verticales |
+| 2006 | Azzurro | Azul real y oro, rombos |
+| 2010 | Vuvu | Oro y negro, triángulos |
+| 2014 | Selva | Verde y amarillo, mosaico |
+| 2018 | Hielo | Plata helada con acento rojo, cristal, barrido |
+| 2022 | Desierto | Granate y oro, celosía |
+| 2023 | Cobalto | Azul cobalto, fibra de carbono |
+| 2024 | Obsidiana | Negro y oro, rejilla |
+| 2025 | Aurora | Violeta y turquesa, aurora holográfica |
+| 2026 | Ultimate | Negro y oro con acento verde, panal, barrido (temporada actual) |
 
-Añadir una rareza: `registerRarity({...})` + un bloque `[data-rarity='nueva']` en `rarity.css`.
+Años sin entrada curada reciben un diseño generado de forma determinista a partir del año.
+Para añadir uno basta una entrada en `EDITIONS`.
+
+## Iconos
+"Icono" es una propiedad del **futbolista**, no de la versión: todas las cartas de Pelé,
+Maradona, Cruyff, Ronaldo Nazário… lo muestran sobre el diseño de su año con un sello
+"★ ICONO ★" centrado arriba, un ribete interior marfil, nombre en marfil dorado y destellos.
+En química aplican la regla clásica de Iconos (ver `CHEMISTRY_SYSTEM.md`) y en los sobres
+tienen revelado propio.
+
+## Composición del CardRenderer (`apps/web/src/components/card/PlayerCard.tsx`)
+1em = ancho/20 → una sola composición para cualquier tamaño. Capas de fondo a frente:
+1. **Marco** metálico de la edición.
+2. **Nación**: bandera a sangre con tinte de la edición e iluminación cenital.
+3. **Foil** de la edición sobre la bandera (patrón en `overlay`, se desvanece hacia abajo).
+4. **Club**: escudo grande en el centro, con sombra de contacto y halo del color de la edición.
+5. **Valoración** + posición + posiciones alternativas (arriba a la izquierda).
+6. **Sello de año** (`'70`) arriba a la derecha; **sello de Icono** centrado si corresponde.
+7. **Nombre** centrado y grande, **versión** centrada en el color de acento entre filetes
+   ("BRASIL '70", "REAL MADRID 25/26"), línea secundaria sin repetir información.
+8. **Seis atributos** (≥ 90 en color de acento).
+9. **Brillos**: reflejo que sigue al cursor, barrido de luz, inclinación 3D.
+
+Tamaño `xs` (campo y banquillo) oculta atributos y la línea secundaria.
 
 ## Recursos
-Bandera, escudo y retrato llegan del sistema de recursos (ver `TECHNICAL_ARCHITECTURE.md`).
-Sin recurso: bandera `flag-icons` local, escudo provisional generado (marcado como tal en su
-`title`) y silueta original con la camiseta del club. No existen imágenes estáticas por carta.
+Bandera y escudo llegan del sistema de recursos (ver `TECHNICAL_ARCHITECTURE.md`). Sin recurso:
+bandera `flag-icons` local y escudo provisional generado con los colores del club (marcado
+como provisional en su `title`). No existen imágenes estáticas por carta.
+
+## Sobres y valor
+Sin rarezas, los sobres usan **bandas de valoración** (≤82, 83–85, 86–88, 89–91, 92+), garantías
+de valoración mínima y filtros por época (p. ej. *Sobre Clásicos*: ediciones ≤ 2010 de 90+).
+El valor de mercado depende de la valoración. Revelado especial ("walkout") para 88+ e Iconos.

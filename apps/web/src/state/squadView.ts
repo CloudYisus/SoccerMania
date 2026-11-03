@@ -31,7 +31,7 @@ export function toChemPlayer(r: ResolvedCard): ChemPlayer {
     nationCode: r.nation.code,
     position: r.position,
     altPositions: r.version.altPositions,
-    isIcon: r.rarity.chemistryProfile === 'icon',
+    isIcon: r.player.icon,
     loyal: r.card.loyal,
   };
 }

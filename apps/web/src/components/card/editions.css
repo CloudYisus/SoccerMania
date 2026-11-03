@@ -1,0 +1,239 @@
+/* ═════════════ FOIL Y MOVIMIENTO POR EDICIÓN ═════════════
+   El patrón de foil se aplica sobre la bandera; su tinta (--e-foil-ink) y el
+   marco/tinte/acento vienen de editions.ts. */
+@property --holo {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: true;
+}
+
+.fu-card__foil {
+  --i: var(--e-foil-ink);
+  position: absolute;
+  inset: 0 0 26% 0;
+  z-index: 1;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 55%, transparent 100%);
+}
+[data-foil='dots'] {
+  background: radial-gradient(var(--i) 0.09em, transparent 0.11em) 0 0 / 0.55em 0.55em;
+}
+[data-foil='pinstripe'] {
+  background: repeating-linear-gradient(90deg, var(--i) 0 0.05em, transparent 0.05em 0.75em);
+}
+[data-foil='crosshatch'] {
+  background:
+    repeating-linear-gradient(45deg, var(--i) 0 0.05em, transparent 0.05em 0.5em),
+    repeating-linear-gradient(-45deg, var(--i) 0 0.05em, transparent 0.05em 0.5em);
+}
+[data-foil='sunburst'] {
+  background: repeating-conic-gradient(from 0deg at 50% 36%, var(--i) 0 5deg, transparent 5deg 14deg);
+}
+[data-foil='rays'] {
+  background: repeating-conic-gradient(from 3deg at 50% 100%, var(--i) 0 3deg, transparent 3deg 9deg);
+}
+[data-foil='hstripes'] {
+  background: repeating-linear-gradient(0deg, var(--i) 0 0.45em, transparent 0.45em 1.35em);
+}
+[data-foil='vstripes'] {
+  background: repeating-linear-gradient(90deg, var(--i) 0 1.1em, transparent 1.1em 2.2em);
+}
+[data-foil='diagonal'] {
+  background: repeating-linear-gradient(120deg, var(--i) 0 0.12em, transparent 0.12em 0.9em);
+}
+[data-foil='scanlines'] {
+  background: repeating-linear-gradient(0deg, var(--i) 0 0.06em, transparent 0.06em 0.28em);
+}
+[data-foil='brushed'] {
+  background: repeating-linear-gradient(90deg, var(--i) 0 0.02em, transparent 0.02em 0.13em, var(--i) 0.13em 0.15em, transparent 0.15em 0.42em);
+}
+[data-foil='chevrons'] {
+  background:
+    linear-gradient(135deg, var(--i) 25%, transparent 25%) -0.6em 0 / 1.2em 1.2em,
+    linear-gradient(225deg, var(--i) 25%, transparent 25%) -0.6em 0 / 1.2em 1.2em;
+}
+[data-foil='zigzag'] {
+  background:
+    linear-gradient(135deg, transparent 75%, var(--i) 75%) 0 0 / 1em 1em,
+    linear-gradient(225deg, transparent 75%, var(--i) 75%) 0 0 / 1em 1em,
+    linear-gradient(315deg, transparent 75%, var(--i) 75%) 0.5em 0.5em / 1em 1em,
+    linear-gradient(45deg, transparent 75%, var(--i) 75%) 0.5em 0.5em / 1em 1em;
+}
+[data-foil='waves'] {
+  background: radial-gradient(circle at 50% 0, transparent 0.42em, var(--i) 0.45em 0.52em, transparent 0.55em) 0 0 / 1.2em 0.75em;
+}
+[data-foil='confetti'] {
+  background:
+    conic-gradient(from 30deg at 30% 30%, var(--i) 0 60deg, transparent 60deg) 0 0 / 1.6em 1.6em,
+    conic-gradient(from 200deg at 70% 70%, var(--i) 0 50deg, transparent 50deg) 0.8em 0.8em / 1.6em 1.6em;
+}
+[data-foil='hex'],
+[data-foil='hexgrid'] {
+  background:
+    radial-gradient(circle, transparent 0.32em, var(--i) 0.34em 0.38em, transparent 0.4em) 0 0 / 1em 1.72em,
+    radial-gradient(circle, transparent 0.32em, var(--i) 0.34em 0.38em, transparent 0.4em) 0.5em 0.86em / 1em 1.72em;
+}
+[data-foil='hexgrid'] {
+  background-size:
+    0.7em 1.2em,
+    0.7em 1.2em;
+  background-position:
+    0 0,
+    0.35em 0.6em;
+}
+[data-foil='diamonds'] {
+  background:
+    linear-gradient(45deg, transparent 46%, var(--i) 46% 54%, transparent 54%) 0 0 / 1em 1em,
+    linear-gradient(-45deg, transparent 46%, var(--i) 46% 54%, transparent 54%) 0 0 / 1em 1em;
+}
+[data-foil='lattice'] {
+  background:
+    linear-gradient(60deg, transparent 47%, var(--i) 47% 53%, transparent 53%) 0 0 / 1.4em 0.8em,
+    linear-gradient(-60deg, transparent 47%, var(--i) 47% 53%, transparent 53%) 0 0 / 1.4em 0.8em;
+}
+[data-foil='crystal'] {
+  background:
+    repeating-linear-gradient(60deg, var(--i) 0 0.05em, transparent 0.05em 0.85em),
+    repeating-linear-gradient(-60deg, var(--i) 0 0.05em, transparent 0.05em 0.85em),
+    repeating-linear-gradient(0deg, var(--i) 0 0.05em, transparent 0.05em 0.85em);
+}
+[data-foil='triangles'] {
+  background:
+    linear-gradient(60deg, var(--i) 25%, transparent 25.5%) 0 0 / 1.2em 2em,
+    linear-gradient(-60deg, var(--i) 25%, transparent 25.5%) 0 0 / 1.2em 2em;
+}
+[data-foil='mosaic'] {
+  background:
+    conic-gradient(var(--i) 25%, transparent 0 50%, var(--i) 0 75%, transparent 0) 0 0 / 0.9em 0.9em;
+  opacity: 0.6;
+}
+[data-foil='carbon'] {
+  background:
+    linear-gradient(45deg, var(--i) 25%, transparent 25% 75%, var(--i) 75%) 0 0 / 0.4em 0.4em,
+    linear-gradient(45deg, var(--i) 25%, transparent 25% 75%, var(--i) 75%) 0.2em 0.2em / 0.4em 0.4em;
+}
+[data-foil='grid'] {
+  background:
+    repeating-linear-gradient(0deg, var(--i) 0 0.04em, transparent 0.04em 0.8em),
+    repeating-linear-gradient(90deg, var(--i) 0 0.04em, transparent 0.04em 0.8em);
+}
+[data-foil='aurora'] {
+  background:
+    radial-gradient(ellipse at 50% 120%, transparent 0.9em, var(--i) 1em 1.08em, transparent 1.15em) 0 0 / 2.4em 1.1em,
+    radial-gradient(ellipse at 50% 120%, transparent 0.9em, var(--i) 1em 1.08em, transparent 1.15em) 1.2em 0.55em / 2.4em 1.1em;
+}
+
+/* Movimiento de la edición */
+.fu-card[data-motion='sweep'] .fu-card__sweep {
+  animation: sweep 4.4s var(--ease-in-out) infinite;
+}
+.fu-card[data-motion='holo'] .fu-card__frame,
+.fu-card[data-motion='holo'] .fu-card__year {
+  animation: holo-spin 6s linear infinite;
+}
+.fu-card[data-motion='holo'] .fu-card__sweep {
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 110, 199, 0.16) 45%, rgba(110, 200, 255, 0.2) 50%, rgba(110, 255, 196, 0.14) 55%, transparent 62%);
+  animation: sweep 5s var(--ease-in-out) infinite;
+}
+.fu-card[data-motion='pulse'] .fu-card__crest-hero::after {
+  animation: halo-pulse 3.2s ease-in-out infinite;
+}
+@keyframes holo-spin {
+  to {
+    --holo: 360deg;
+  }
+}
+@keyframes halo-pulse {
+  50% {
+    opacity: 0.95;
+    transform: scale(1.08);
+  }
+}
+
+/* ═════════════ ICONOS ═════════════
+   Distintivo del FUTBOLISTA (no de la versión): se superpone al diseño del año
+   con un ribete marfil, sello "ICONO" con estrella y destellos. */
+.fu-card[data-icon='true'] .fu-card__body::before {
+  content: '';
+  position: absolute;
+  inset: 0.32em;
+  z-index: 4;
+  pointer-events: none;
+  border-radius: 0.28em;
+  box-shadow:
+    inset 0 0 0 0.1em rgba(255, 244, 214, 0.98),
+    inset 0 0 0 0.24em rgba(0, 0, 0, 0.35),
+    inset 0 0 0 0.3em rgba(255, 244, 214, 0.55),
+    inset 0 0 1.2em rgba(255, 236, 190, 0.25);
+}
+.fu-card[data-icon='true'] .fu-card__body::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background-image:
+    radial-gradient(0.12em 0.12em at 22% 30%, rgba(255, 245, 220, 0.95), transparent),
+    radial-gradient(0.1em 0.1em at 80% 22%, rgba(255, 245, 220, 0.85), transparent),
+    radial-gradient(0.14em 0.14em at 70% 50%, rgba(255, 245, 220, 0.75), transparent),
+    radial-gradient(0.1em 0.1em at 30% 56%, rgba(255, 245, 220, 0.75), transparent);
+  animation: twinkle 3.2s ease-in-out infinite alternate;
+}
+@keyframes twinkle {
+  from {
+    opacity: 0.25;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.fu-card__icon {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  top: 0.62em;
+  translate: -50% 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  font-family: var(--font-ui);
+  font-weight: 800;
+  font-size: 0.95em;
+  letter-spacing: 0.22em;
+  line-height: 1;
+  padding: 0.32em 0.55em 0.28em 0.75em;
+  border-radius: 0 0 0.4em 0.4em;
+  color: #2a2210;
+  background: linear-gradient(180deg, #fffdf6, #ead7a8 60%, #c9ad6c);
+  box-shadow:
+    0 0 0.9em rgba(255, 236, 190, 0.6),
+    0 0.14em 0.35em rgba(0, 0, 0, 0.5),
+    inset 0 -0.06em 0 rgba(120, 90, 30, 0.6);
+}
+.fu-card__icon svg {
+  width: 0.85em;
+  height: 0.85em;
+  color: #9a7426;
+}
+/* Nombre de los Iconos en marfil dorado */
+.fu-card[data-icon='true'] .fu-card__name {
+  background: linear-gradient(180deg, #ffffff 0%, #fff4d6 45%, #e9d3a0 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0.06em 0.1em rgba(0, 0, 0, 0.7));
+}
+.fu-card[data-size='xs'] .fu-card__icon {
+  font-size: 1.15em;
+  padding: 0.25em 0.4em;
+  letter-spacing: 0.1em;
+}
+.fu-card[data-size='xs'] .fu-card__icon span {
+  display: none;
+}
+.fu-card[data-size='xs'] .fu-card__icon svg + span + svg {
+  display: none;
+}

@@ -289,7 +289,7 @@
 }
 .rarity-bars__row {
   display: grid;
-  grid-template-columns: 74px 1fr 26px;
+  grid-template-columns: 112px 1fr 26px;
   align-items: center;
   gap: 8px;
   font-size: 12px;
@@ -307,7 +307,13 @@
 .rarity-bars__bar span {
   display: block;
   height: 100%;
-  background: var(--r-frame);
+  background: var(--e-frame);
+}
+.rarity-bars__row--icons .rarity-bars__bar span {
+  background: linear-gradient(90deg, #e9d6a6, #fffaf0);
+}
+.rarity-bars__row--icons .t-ui {
+  color: #f3e6c4 !important;
 }
 .rarity-bars__row .t-num {
   text-align: right;

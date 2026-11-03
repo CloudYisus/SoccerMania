@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { getRarity, listRarities, PACKS } from '@fu/domain';
+import { editionTag, PACKS } from '@fu/domain';
+import { editionStyle, getEdition } from '../components/card/editions';
 import { PlayerCard } from '../components/card/PlayerCard';
 import { Icon } from '../components/ui/icons';
 import { Coins, Meter } from '../components/ui/ui';
@@ -94,12 +95,15 @@ export function HomeScreen() {
   }).length;
   const openChallenges = CHALLENGES.filter((c) => !claimed[c.id]).length;
   const activeSales = myListings.filter((l) => l.status === 'active').length;
-  const featured = [...listings].sort((a, b) => getRarity(version(b.versionId).version.rarity).tier - getRarity(version(a.versionId).version.rarity).tier)[0];
+  const featured = [...listings].sort((a, b) => version(b.versionId).version.rating - version(a.versionId).version.rating)[0];
   const collectionCount = Object.keys(cards).length;
-  const byRarity = listRarities().map((r) => ({
-    r,
-    n: Object.values(cards).filter((c) => version(c.versionId).version.rarity === r.id).length,
-  }));
+  const iconCount = Object.values(cards).filter((c) => version(c.versionId).player.icon).length;
+  const byEdition = [...Object.values(cards).reduce((m, c) => {
+    const y = version(c.versionId).version.year;
+    return m.set(y, (m.get(y) ?? 0) + 1);
+  }, new Map<number, number>())]
+    .sort((a, b) => b[1] - a[1] || b[0] - a[0])
+    .slice(0, 5);
   const promoPack = welcomeClaimed ? PACKS.find((p) => p.id === 'premium')! : PACKS.find((p) => p.id === 'welcome')!;
 
   return (
@@ -119,14 +123,14 @@ export function HomeScreen() {
           cta="Ver sobres"
           art={
             <div className="hero-fan">
-              <PlayerCard versionId="maradona-icon" size="lg" className="hero-fan__card hero-fan__card--l" />
-              <PlayerCard versionId="pele-icon" size="lg" className="hero-fan__card hero-fan__card--c" />
-              <PlayerCard versionId="cruyff-icon" size="lg" className="hero-fan__card hero-fan__card--r" />
+              <PlayerCard versionId="maradona-87" size="lg" className="hero-fan__card hero-fan__card--l" />
+              <PlayerCard versionId="pele-62" size="lg" className="hero-fan__card hero-fan__card--c" />
+              <PlayerCard versionId="cruyff-72" size="lg" className="hero-fan__card hero-fan__card--r" />
             </div>
           }
         >
           <p className="tile__text">
-            Pelé, Maradona, Cruyff y los Iconos de cada generación llegan al Sobre Icono. Una carta, Icono garantizado.
+            Pelé, Maradona, Cruyff y las grandes ediciones históricas llegan al Sobre Clásicos. Cada año, su propio diseño.
           </p>
         </Tile>
 
@@ -211,15 +215,24 @@ export function HomeScreen() {
 
         <Tile to="club" className="tile--club" eyebrow="Mi club" title={`${collectionCount} cartas`} cta="Ver club">
           <div className="rarity-bars">
-            {byRarity.map(({ r, n }) => (
-              <div key={r.id} className="rarity-bars__row" data-rarity={r.id}>
-                <span className="t-ui">{r.label}</span>
+            {byEdition.map(([year, n]) => (
+              <div key={year} className="rarity-bars__row" style={editionStyle(year)}>
+                <span className="t-ui">
+                  {editionTag(year)} {getEdition(year).name}
+                </span>
                 <span className="rarity-bars__bar">
                   <span style={{ width: `${Math.min(100, (n / Math.max(1, collectionCount)) * 100 * 2)}%` }} />
                 </span>
                 <span className="t-num">{n}</span>
               </div>
             ))}
+            <div className="rarity-bars__row rarity-bars__row--icons">
+              <span className="t-ui">★ Iconos</span>
+              <span className="rarity-bars__bar">
+                <span style={{ width: `${Math.min(100, (iconCount / Math.max(1, collectionCount)) * 100 * 2)}%` }} />
+              </span>
+              <span className="t-num">{iconCount}</span>
+            </div>
           </div>
         </Tile>
 

@@ -1,7 +1,5 @@
 import { useMemo, useState } from 'react';
 import {
-  getRarity,
-  listRarities,
   POSITION_LABELS,
   POSITION_LINE,
   priceRange,
@@ -10,7 +8,8 @@ import {
   versionsOfPlayer,
   type PositionLine,
 } from '@fu/domain';
-import { PlayerCard } from '../components/card/PlayerCard';
+import { PlayerCard, versionLabel } from '../components/card/PlayerCard';
+import { editionStyle, getEdition } from '../components/card/editions';
 import { Icon } from '../components/ui/icons';
 import { Button, Coins, Drawer, SectionHeader, Segmented } from '../components/ui/ui';
 import { catalog, resolve } from '../data/catalog';
@@ -19,14 +18,15 @@ import { feedback } from '../state/uiStore';
 import './screens.css';
 
 type LineFilter = 'all' | PositionLine;
-type Sort = 'rating' | 'rarity' | 'recent';
+type Sort = 'rating' | 'edition' | 'recent';
 
 export function ClubScreen() {
   const cards = useGame((s) => s.cards);
   const squad = useGame((s) => s.squad);
   const myListings = useGame((s) => s.myListings);
   const [query, setQuery] = useState('');
-  const [rarity, setRarity] = useState<string>('all');
+  const [edition, setEdition] = useState<string>('all');
+  const [iconsOnly, setIconsOnly] = useState(false);
   const [line, setLine] = useState<LineFilter>('all');
   const [sort, setSort] = useState<Sort>('rating');
   const [openId, setOpenId] = useState<string | null>(null);
@@ -38,7 +38,8 @@ export function ClubScreen() {
     const q = query.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
     return Object.values(cards)
       .map(resolve)
-      .filter((r) => rarity === 'all' || r.version.rarity === rarity)
+      .filter((r) => edition === 'all' || String(r.version.year) === edition)
+      .filter((r) => !iconsOnly || r.player.icon)
       .filter((r) => line === 'all' || POSITION_LINE[r.position] === line)
       .filter((r) => {
         if (!q) return true;
@@ -51,12 +52,16 @@ export function ClubScreen() {
       .sort((a, b) =>
         sort === 'rating'
           ? b.version.rating - a.version.rating
-          : sort === 'rarity'
-            ? b.rarity.tier - a.rarity.tier || b.version.rating - a.version.rating
+          : sort === 'edition'
+            ? b.version.year - a.version.year || b.version.rating - a.version.rating
             : b.card.acquiredAt - a.card.acquiredAt,
       );
-  }, [cards, query, rarity, line, sort]);
+  }, [cards, query, edition, iconsOnly, line, sort]);
 
+  const editionYears = useMemo(
+    () => [...new Set(Object.values(cards).map((c) => catalog.versions.get(c.versionId)!.year))].sort((a, b) => b - a),
+    [cards],
+  );
   const open = openId && cards[openId] ? resolve(cards[openId]) : null;
 
   return (
@@ -71,12 +76,20 @@ export function ClubScreen() {
           <Icon.Search size={16} />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar jugador, club, nación…" aria-label="Buscar" />
         </label>
-        <Segmented
-          label="Rareza"
-          value={rarity}
-          onChange={setRarity}
-          options={[{ id: 'all', label: 'Todas' }, ...listRarities().map((r) => ({ id: r.id as string, label: r.label }))]}
-        />
+        <label className="select select--inline">
+          <span className="t-ui">Edición</span>
+          <select value={edition} onChange={(e) => setEdition(e.target.value)} aria-label="Edición">
+            <option value="all">Todas</option>
+            {editionYears.map((y) => (
+              <option key={y} value={y}>
+                {y} · {getEdition(y).name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button className="toggle t-ui" data-on={iconsOnly} aria-pressed={iconsOnly} onClick={() => setIconsOnly((v) => !v)}>
+          ★ Sólo Iconos
+        </button>
         <Segmented<LineFilter>
           label="Línea"
           value={line}
@@ -95,7 +108,7 @@ export function ClubScreen() {
           onChange={setSort}
           options={[
             { id: 'rating', label: 'Media' },
-            { id: 'rarity', label: 'Rareza' },
+            { id: 'edition', label: 'Edición' },
             { id: 'recent', label: 'Recientes' },
           ]}
         />
@@ -129,9 +142,9 @@ function CardDetail({ cardId, inSquad, listed, onDone }: { cardId: string; inSqu
   const allCards = useGame((s) => s.cards);
   const { quickSell, listCard } = useGame.getState();
   const r = resolve(card);
-  const range = priceRange(r.version.rating, r.version.rarity);
+  const range = priceRange(r.version.rating);
   const [price, setPrice] = useState(Math.round((range.min + range.max) / 2 / 100) * 100);
-  const qs = quickSellValue(r.version.rating, r.version.rarity);
+  const qs = quickSellValue(r.version.rating);
   const owned = new Set(Object.values(allCards).map((c) => c.versionId));
   const others = versionsOfPlayer(catalog, r.player.id);
 
@@ -140,12 +153,17 @@ function CardDetail({ cardId, inSquad, listed, onDone }: { cardId: string; inSqu
       <div className="card-detail__hero">
         <PlayerCard card={card} size="lg" tilt interactive />
         <div className="card-detail__info">
-          <span className="t-eyebrow">{getRarity(r.version.rarity).label}</span>
+          <div className="card-detail__tags">
+            <span className="tag tag--edition" style={editionStyle(r.version.year)}>
+              Edición {getEdition(r.version.year).name} {r.version.year}
+            </span>
+            {r.player.icon && <span className="tag tag--icon">★ Icono</span>}
+          </div>
           <h3 className="t-display">{r.player.fullName}</h3>
           <dl className="facts">
             <dt>Versión</dt>
             <dd>
-              {r.version.label} ({r.version.season})
+              {versionLabel(r.version.label, r.version.season)}
             </dd>
             <dt>Club</dt>
             <dd>{r.club.name}</dd>

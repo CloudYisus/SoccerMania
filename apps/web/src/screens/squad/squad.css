@@ -76,48 +76,6 @@
   justify-content: flex-end;
 }
 
-/* Selects con estilo de juego */
-.select {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.select > span {
-  font-size: 11px;
-  color: var(--text-2);
-  letter-spacing: 0.16em;
-}
-.select select {
-  appearance: none;
-  height: 40px;
-  min-width: 120px;
-  padding: 0 34px 0 12px;
-  font-family: var(--font-ui);
-  font-weight: 700;
-  font-size: 16px;
-  letter-spacing: 0.06em;
-  border: 0;
-  border-radius: var(--radius-xs);
-  background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23f3d99b' stroke-width='1.8' fill='none'/%3E%3C/svg%3E") no-repeat right 12px center,
-    rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 0 0 1px var(--line-strong);
-  cursor: pointer;
-}
-.select select:hover {
-  box-shadow: inset 0 0 0 1px rgba(243, 217, 155, 0.6);
-}
-.select option {
-  background: #12151b;
-}
-.select--block {
-  display: flex;
-  margin: 14px 0 6px;
-}
-.select--block select {
-  width: 100%;
-}
-
 /* Disposición */
 .squad__layout {
   display: grid;
@@ -424,10 +382,6 @@
   margin: 8px 0 10px;
   flex-wrap: wrap;
 }
-.selected__tags .tag[data-rarity] {
-  background: var(--r-badge);
-  color: var(--r-badge-text);
-}
 .stat-bars {
   display: grid;
   gap: 5px;
@@ -591,12 +545,12 @@ button.alt-row {
   top: 0;
   bottom: 0;
   width: 3px;
-  background: var(--r-frame);
+  background: var(--e-frame);
 }
 .alt-row__rating {
   font-size: 22px;
   line-height: 1;
-  background: var(--r-rating);
+  background: var(--e-rating);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;

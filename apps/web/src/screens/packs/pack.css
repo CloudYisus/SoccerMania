@@ -125,15 +125,17 @@
   --pack-light: rgba(243, 217, 155, 0.3);
   --pack-text: #f3d99b;
 }
-.pack[data-theme='legend'] {
+.pack[data-theme='elite'] {
   --pack-bg: linear-gradient(160deg, #2b2110, #0f0b05 55%, #000);
   --pack-edge: rgba(240, 200, 110, 0.95);
   --pack-light: rgba(240, 200, 110, 0.45);
   --pack-text: #fff1cf;
 }
-.pack[data-theme='icon'] {
-  --pack-bg: linear-gradient(160deg, #fffaf0, #e7d5a8 40%, #a48548 80%, #5e4718);
-  --pack-edge: rgba(255, 255, 255, 0.9);
-  --pack-light: rgba(255, 255, 255, 0.7);
-  --pack-text: #2a2210;
+.pack[data-theme='classic'] {
+  --pack-bg:
+    repeating-linear-gradient(90deg, rgba(60, 35, 15, 0.12) 0 0.06em, transparent 0.06em 0.8em),
+    linear-gradient(160deg, #f5e3c0, #c9a06a 45%, #7a5228 85%, #3e2810);
+  --pack-edge: rgba(255, 240, 210, 0.9);
+  --pack-light: rgba(255, 245, 225, 0.6);
+  --pack-text: #2a1a08;
 }

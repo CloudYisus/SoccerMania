@@ -36,7 +36,7 @@ export interface OpponentDefinition {
   formationId: '4-3-3' | '4-2-3-1' | '4-4-2' | '3-5-2' | '4-1-4-1' | '4-3-1-2';
   difficulty: 1 | 2 | 3 | 4 | 5;
   /** Filtro de versiones elegibles para su once. */
-  pool: { rarities?: string[]; maxRating?: number; minRating?: number; nations?: string[]; versionIds?: string[] };
+  pool: { icons?: boolean; maxRating?: number; minRating?: number; minYear?: number; maxYear?: number; nations?: string[] };
   description: string;
 }
 
@@ -48,7 +48,7 @@ export const OPPONENTS: OpponentDefinition[] = [
     colors: { primary: '#2d6a4f', secondary: '#f1faee' },
     formationId: '4-4-2',
     difficulty: 1,
-    pool: { rarities: ['common'], maxRating: 84 },
+    pool: { icons: false, minYear: 2024, maxRating: 84 },
     description: 'Bloque ordenado, poca pegada.',
   },
   {
@@ -58,7 +58,7 @@ export const OPPONENTS: OpponentDefinition[] = [
     colors: { primary: '#1d3557', secondary: '#e9c46a' },
     formationId: '4-2-3-1',
     difficulty: 2,
-    pool: { rarities: ['common', 'special'], maxRating: 87 },
+    pool: { icons: false, minYear: 2024, maxRating: 87 },
     description: 'Doble pivote y transiciones rápidas.',
   },
   {
@@ -68,7 +68,7 @@ export const OPPONENTS: OpponentDefinition[] = [
     colors: { primary: '#f8f9fa', secondary: '#7b2cbf' },
     formationId: '4-3-3',
     difficulty: 3,
-    pool: { rarities: ['special', 'epic'] },
+    pool: { icons: false, minYear: 2023, minRating: 86 },
     description: 'Las estrellas actuales en un solo once.',
   },
   {
@@ -88,7 +88,7 @@ export const OPPONENTS: OpponentDefinition[] = [
     colors: { primary: '#0b132b', secondary: '#c9a227' },
     formationId: '4-3-3',
     difficulty: 5,
-    pool: { rarities: ['legend', 'icon', 'unique'], nations: ['de', 'it', 'es', 'fr', 'nl', 'pt', 'hu', 'hr'] },
+    pool: { icons: true, nations: ['de', 'it', 'es', 'fr', 'nl', 'pt', 'hu', 'hr'] },
     description: 'Iconos y leyendas europeas. El reto definitivo.',
   },
 ];

@@ -45,7 +45,7 @@ npm run sync:teams
 ```
 
 Sin clave el juego funciona igualmente: las banderas salen de `flag-icons` (local) y los
-escudos/retratos usan placeholders generados. Las claves **nunca** llegan al navegador.
+los escudos usan placeholders generados con los colores del club. Las claves **nunca** llegan al navegador.
 
 ## Estructura
 
