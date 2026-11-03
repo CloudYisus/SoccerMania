@@ -1,0 +1,77 @@
+/* ───────────── Football Ultimate · Design tokens ───────────── */
+:root {
+  /* Superficies: negro carbón → antracita */
+  --bg-0: #060709;
+  --bg-1: #0b0d11;
+  --bg-2: #12151b;
+  --bg-3: #1a1e26;
+  --bg-4: #232833;
+  --surface: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015));
+  --surface-strong: linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.025));
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.16);
+
+  /* Texto: blanco cálido */
+  --text-0: #f4efe4;
+  --text-1: rgba(244, 239, 228, 0.74);
+  --text-2: rgba(244, 239, 228, 0.5);
+  --text-3: rgba(244, 239, 228, 0.32);
+
+  /* Dorado metálico */
+  --gold-0: #fff3cf;
+  --gold-1: #f3d99b;
+  --gold-2: #d6a84c;
+  --gold-3: #a5772a;
+  --gold-4: #6b4a14;
+  --gold-metal: linear-gradient(135deg, #fff1c4 0%, #e2b85c 28%, #a87a2b 52%, #f5dc9b 74%, #8f6420 100%);
+  --gold-text: linear-gradient(180deg, #fff3cf 0%, #f0cf82 45%, #c08c34 100%);
+
+  /* Acentos */
+  --green: #39d98a;
+  --green-deep: #0f6b44;
+  --blue: #3fa2ff;
+  --blue-deep: #12406f;
+  --teal: #29c7b0;
+  --red: #ef4f55;
+  --amber: #f5c443;
+
+  /* Química */
+  --chem-strong: #39d98a;
+  --chem-medium: #f5c443;
+  --chem-weak: #ef4f55;
+  --chem-empty: rgba(255, 255, 255, 0.18);
+
+  /* Tipografía */
+  --font-display: 'Anton', 'Impact', 'Oswald', sans-serif;
+  --font-ui: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --font-body: 'Barlow', system-ui, sans-serif;
+
+  /* Escala */
+  --radius-xs: 3px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --gutter: clamp(14px, 2.4vw, 32px);
+  --topbar-h: 72px;
+
+  /* Sombras naturales */
+  --shadow-1: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 8px 24px -12px rgba(0, 0, 0, 0.8);
+  --shadow-2: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 24px 48px -24px rgba(0, 0, 0, 0.9);
+  --shadow-card: 0 18px 30px -14px rgba(0, 0, 0, 0.85), 0 4px 10px -4px rgba(0, 0, 0, 0.6);
+
+  /* Movimiento */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 160ms;
+  --dur-med: 320ms;
+  --dur-slow: 620ms;
+
+  color-scheme: dark;
+}
+
+@media (max-width: 720px) {
+  :root {
+    --topbar-h: 60px;
+  }
+}

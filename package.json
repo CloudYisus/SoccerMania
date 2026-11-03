@@ -1,0 +1,30 @@
+{
+  "name": "football-ultimate",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Football Ultimate — juego web de colección y gestión futbolística",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n server,web -c yellow,cyan \"npm:dev:server\" \"npm:dev:web\"",
+    "dev:web": "npm run dev -w @fu/web",
+    "dev:server": "npm run dev -w @fu/server",
+    "build": "npm run build -w @fu/web",
+    "preview": "npm run preview -w @fu/web",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p packages/shared && tsc -p packages/domain && tsc -p packages/database && tsc -p packages/data-providers && tsc -p packages/match-renderer && tsc -p apps/server && tsc -p apps/web",
+    "sync:countries": "npm run sync:countries -w @fu/server",
+    "sync:teams": "npm run sync:teams -w @fu/server",
+    "db:migrate": "npm run db:migrate -w @fu/server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.7",
+    "@types/node": "^22.10.0"
+  }
+}

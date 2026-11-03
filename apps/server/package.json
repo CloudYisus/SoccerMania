@@ -1,0 +1,24 @@
+{
+  "name": "@fu/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "sync:countries": "tsx src/scripts/sync-countries.ts",
+    "sync:teams": "tsx src/scripts/sync-teams.ts",
+    "db:migrate": "tsx src/scripts/db-migrate.ts"
+  },
+  "dependencies": {
+    "@fu/data-providers": "*",
+    "@fu/database": "*",
+    "@fu/domain": "*",
+    "flag-icons": "^7.5.0",
+    "pg": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.15.0",
+    "tsx": "^4.20.0"
+  }
+}
