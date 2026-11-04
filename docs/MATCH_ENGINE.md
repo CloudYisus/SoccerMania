@@ -127,3 +127,64 @@ recalculan cada 0,25 s con las posiciones reales.
 `highpress`. Cada estilo modifica las preferencias de pase (corto, largo, al
 hueco, centro), de disparo lejano, de regate, la frecuencia de desmarques, la
 altura del bloque, la amplitud, el ritmo, la presión y las faltas.
+
+## Impulso: las jugadas bien elegidas tienen continuidad
+
+Tras una decisión ofensiva acertada (regate, filigrana, pared, pase al hueco,
+centro, conducción…), el jugador que continúa la jugada recibe **impulso**
+(nivel 1–3 según la cadena y la calidad de la acción, durante ~5,5 s de motor):
+- queda protegido de entradas ~1,2 s y los rivales cercanos tardan en reaccionar;
+- sus siguientes acciones tienen ventaja: regate +6 %/nivel, pase +4 %/nivel,
+  entradas rivales −12 %/nivel, y en el disparo +7 % a puerta y ×(1 + 0,2·nivel)
+  de gol;
+- si decide la IA, busca terminar la jugada (prefiere el disparo cerca del área);
+- se pueden encadenar hasta 3 decisiones seguidas.
+
+Así, en las pruebas, alrededor del 58 % de las decisiones ofensivas acertadas
+acaban en disparo y el 27 % en gol (medido sobre las acciones acertadas, no
+sobre cadenas completas). No es gol seguro: un remate con impulso sigue
+pudiendo ir fuera o pararse.
+
+## Goleadores variados
+
+- **Llegadas desde segunda línea**: medios y extremos atacan el área (punto de
+  penalti o frontal) cuando el balón se acerca; si reciben ahí, rematan de
+  primeras.
+- **Pase de la muerte**: el poseedor encimado busca al compañero libre ante el
+  portero.
+- **Balón parado**: en los córners y en las faltas laterales cercanas suben los
+  mejores en el juego aéreo (incluidos los centrales, que cabecean con su
+  atributo de defensa), con azar en quién gana la posición. Un medio espera el
+  rechace en la frontal.
+- **Rechaces**: el portero puede despejar dentro del área (balón vivo). Los
+  despejes de cabeza caen a la frontal o salen a córner, y algunos disparos
+  desviados también acaban en córner.
+- **Marcaje a las estrellas**: los delanteros más peligrosos reciben marcaje más
+  estrecho, lo que reparte más el juego.
+
+Reparto medido con plantillas reales: ~78 % de los goles son de delanteros, ~15 %
+de medios y ~8 % de defensas.
+
+## Render y rendimiento
+
+- El motor expone `getFrame()`: posiciones **interpoladas entre ticks** (0,1 s)
+  en un objeto reutilizado. El movimiento es fluido a cualquier velocidad,
+  también a cámara lenta durante las decisiones.
+- Hay un solo bucle: la escena de Phaser llama a `onFrame(dt)` (avanza el motor
+  y devuelve el fotograma). La interfaz de React se actualiza 4 veces por
+  segundo.
+- El campo y las fichas se pre-renderizan en texturas una sola vez. Se usa
+  Canvas 2D (`?webgl` en la URL fuerza WebGL), a resolución nativa en pantallas
+  Retina.
+- Durante el partido, el resto de la aplicación queda oculto (no se pinta ni
+  anima nada detrás).
+
+## Fichas de los jugadores
+
+Cada ficha es la carta del jugador en miniatura:
+- bandera de su nación en el centro;
+- anillo grueso del color del equipo, ajustado para que contraste con el césped
+  y con el rival;
+- filete exterior del color de la edición de su carta;
+- dorsal en una chapa y estrella dorada si es Icono;
+- nombre siempre visible.

@@ -125,11 +125,11 @@ export function App() {
   const match = useUi((s) => s.match);
   return (
     <>
-      <div className="stage" aria-hidden>
+      <div className="stage" aria-hidden data-hidden={match ? true : undefined}>
         <div className="stage__lines" />
         <div className="stage__grain" />
       </div>
-      <div className="app" inert={match ? true : undefined}>
+      <div className="app" inert={match ? true : undefined} data-hidden={match ? true : undefined}>
         <TopBar />
         <main className="shell">
           <ScreenStage />

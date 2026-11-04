@@ -60,3 +60,9 @@
   text-transform: uppercase;
   color: var(--text-3);
 }
+
+/* Durante el partido el club queda oculto: no se pinta ni anima nada detrás. */
+.app[data-hidden='true'],
+.stage[data-hidden='true'] {
+  display: none;
+}

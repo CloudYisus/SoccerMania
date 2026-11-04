@@ -185,7 +185,7 @@ export function aiToMatchSetup(t: TeamBuild): MatchTeamSetup {
     lineup: t.versionIds.map((id, i) => {
       const r = version(id);
       return {
-        id: `away-${i}-${id}`,
+        id: `${t.id}-${i}-${id}`,
         name: r.player.knownAs,
         number: r.version.shirtNumber,
         stats: r.version.stats,

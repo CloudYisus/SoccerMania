@@ -37,3 +37,19 @@ la versión. Los sobres se definen por bandas de valoración y por épocas. Ver 
 - La lógica nunca es decorativa: química, rating, precios y resultados se calculan.
 - Los mejores rinden mejor estadísticamente, pero no ganan siempre.
 - Datos de demostración claramente señalados; nada se presenta como dato oficial de API.
+
+## Copa Ultimate
+
+Ocho equipos (el del usuario y 7 rivales de la IA, sorteados en el cuadro) a
+eliminación directa: cuartos, semifinal y final, con penaltis si hay empate.
+El usuario juega en directo. Los demás partidos se simulan con el mismo motor
+al terminar cada ronda, y si el usuario cae el torneo sigue hasta coronar
+campeón.
+
+Se registran estadísticas de todos los participantes:
+- goleadores (Bota de oro);
+- asistentes;
+- porterías a cero (Guante de oro).
+
+Se muestran junto al cuadro con la carta del líder. Inscripción: 2.500
+monedas; premio al campeón: 25.000.

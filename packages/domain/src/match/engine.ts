@@ -25,6 +25,7 @@ import {
   type MatchTeamSetup,
   type PassVariant,
   type PlayerState,
+  type RenderFrame,
   type ShotMode,
   type TeamSide,
   type TeamStats,
@@ -81,6 +82,16 @@ interface Agent extends PlayerState {
   icon: boolean;
   /** Protegido de entradas hasta este instante (acción elegida por el usuario). */
   protectedUntil: number;
+  /** Posición al inicio del tick (para interpolar el render). */
+  px: number;
+  py: number;
+  /** Impulso de una jugada elegida con éxito (0–3) y hasta cuándo dura. */
+  momentum: number;
+  momentumUntil: number;
+  /** Desmarque de llegada al área (segunda línea) en lugar de a la espalda de la defensa. */
+  boxRun: boolean;
+  /** Recibió llegando desde segunda línea: busca el remate de primeras. */
+  arrivalUntil: number;
 }
 
 type RestartKind = 'throw' | 'goalkick' | 'corner' | 'freekick' | 'penalty';
@@ -97,6 +108,10 @@ interface Restart {
   direct: boolean;
   /** Estado de la decisión del usuario sobre este balón parado. */
   decision?: 'pending' | 'auto';
+  /** Variación de quién sube a rematar (determinista por jugada). */
+  seed: number;
+  /** Jugador que espera el rechace en la frontal. */
+  lurkerId?: string;
 }
 
 const emptyStats = (): TeamStats => ({
@@ -163,7 +178,9 @@ const CORNER_PROMPT: Record<Exclude<DecisionFrequency, 'off'>, number> = { low: 
 /** Ventana (segundos de motor) para decidir antes de que lo haga la IA. */
 const PROMPT_WINDOW: Record<DecisionContext, number> = { attack: 1.15, oneonone: 0.95, setpiece: 1.6, defense: 0.95, keeper: 0.85 };
 const CHAIN_WINDOW = 2.4;
-const MAX_CHAIN = 2;
+const MAX_CHAIN = 3;
+/** Duración (s de motor) del impulso tras una decisión acertada. */
+const MOMENTUM_TIME = 5.5;
 const SKILL_MOVES = ['Ruleta', 'Bicicleta', 'Caño', 'Elástica', 'Sombrero', 'Cola de vaca'];
 
 const FAMILY: Record<DecisionKind, DecisionFamily> = {
@@ -215,6 +232,19 @@ interface ShotStyle {
   decisionId?: number;
 }
 
+/** Probabilidad relativa de llegar al área desde segunda línea según la instrucción. */
+const LATE_MULT: Record<PlayerInstruction, number> = {
+  none: 1,
+  press: 1,
+  makeRuns: 1.6,
+  holdPosition: 0,
+  getForward: 2.6,
+  dropBack: 0.15,
+  diagonalRuns: 1.3,
+  keepPossession: 0.7,
+  shootOnSight: 1.5,
+};
+
 /** Jugadas de prioridad alta: no se filtran y piden cámara lenta. */
 const MAJOR: ReadonlySet<HighlightKind> = new Set(['goal', 'penalty', 'oneonone', 'roundkeeper', 'bigsave', 'woodwork', 'freekick']);
 /** Separación mínima (segundos de motor) entre avisos de prioridad normal. */
@@ -229,6 +259,8 @@ export class MatchEngine {
   private ball: BallState = { x: L / 2, y: W / 2, vx: 0, vy: 0, ownerId: null, flight: null };
   private time = 0;
   private accumulator = 0;
+  private prevBall = { x: L / 2, y: W / 2 };
+  private frame: RenderFrame | null = null;
   private phase: MatchPhase = 'kickoff';
   private phaseTimer = 1.2;
   private period: 1 | 2 = 1;
@@ -257,6 +289,8 @@ export class MatchEngine {
   private readonly decisionCtx = new Map<number, DecisionCtx>();
   private oneTwo: { by: string; ctx: DecisionCtx } | null = null;
   private scripted: { ownerId: string; defId: string; at: number; ctx: DecisionCtx } | null = null;
+  /** Segunda jugada tras un balón colgado: el jugador de la frontal remata de primeras. */
+  private secondBall: { lurkerId: string; until: number } | null = null;
 
   constructor(
     readonly home: MatchTeamSetup,
@@ -307,6 +341,12 @@ export class MatchEngine {
           booked: false,
           icon: !!p.icon,
           protectedUntil: 0,
+          px: 0,
+          py: 0,
+          momentum: 0,
+          momentumUntil: 0,
+          boxRun: false,
+          arrivalUntil: 0,
         };
         if (this.byId.has(agent.id)) throw new Error(`ID de jugador duplicado en el partido: ${agent.id}`);
         this.agents.push(agent);
@@ -409,6 +449,43 @@ export class MatchEngine {
     return Math.min(90, Math.floor((this.time / this.config.engineDurationSeconds) * 90));
   }
 
+  /**
+   * Fotograma para el renderizador: posiciones interpoladas entre el tick
+   * anterior y el actual según el tiempo acumulado. Reutiliza el mismo objeto
+   * en cada llamada para no generar basura a 60–144 fps.
+   */
+  getFrame(): RenderFrame {
+    const alpha = clamp(this.accumulator / this.config.tickSeconds, 0, 1);
+    const f =
+      this.frame ??
+      (this.frame = {
+        time: 0,
+        phase: this.phase,
+        ownerId: null,
+        flight: null,
+        ball: { x: 0, y: 0 },
+        players: this.agents.map((a) => ({ id: a.id, x: a.x, y: a.y, stunned: false, jump: false })),
+      });
+    f.time = this.time - this.config.tickSeconds + alpha * this.config.tickSeconds;
+    f.phase = this.phase;
+    f.ownerId = this.ball.ownerId;
+    f.flight = this.ball.flight;
+    for (let i = 0; i < this.agents.length; i++) {
+      const a = this.agents[i];
+      const p = f.players[i];
+      const jump = Math.abs(a.x - a.px) + Math.abs(a.y - a.py) > 6;
+      p.jump = jump;
+      p.x = jump ? a.x : a.px + (a.x - a.px) * alpha;
+      p.y = jump ? a.y : a.py + (a.y - a.py) * alpha;
+      p.stunned = a.stunned > 0;
+    }
+    const b = this.ball;
+    const bj = Math.abs(b.x - this.prevBall.x) + Math.abs(b.y - this.prevBall.y) > 8;
+    f.ball.x = bj ? b.x : this.prevBall.x + (b.x - this.prevBall.x) * alpha;
+    f.ball.y = bj ? b.y : this.prevBall.y + (b.y - this.prevBall.y) * alpha;
+    return f;
+  }
+
   getSnapshot(): MatchSnapshot {
     return {
       time: this.time,
@@ -442,6 +519,12 @@ export class MatchEngine {
 
   private tick(): void {
     const dt = this.config.tickSeconds;
+    for (const a of this.agents) {
+      a.px = a.x;
+      a.py = a.y;
+    }
+    this.prevBall.x = this.ball.x;
+    this.prevBall.y = this.ball.y;
     this.time += dt;
     const half = this.config.engineDurationSeconds / 2;
     const setPiece = this.phase === 'restart' && (this.restart?.kind === 'penalty' || this.restart?.direct);
@@ -553,6 +636,10 @@ export class MatchEngine {
   private gk(side: TeamSide) {
     return this.agents.find((a) => a.side === side && a.isGK) ?? this.team(side)[0];
   }
+  /** Nivel de impulso vigente del jugador (0 si no tiene). */
+  private mom(a: Agent) {
+    return a.momentumUntil > this.time ? a.momentum : 0;
+  }
   private style(side: TeamSide): StyleProfile {
     return STYLE[this.tactics[side].style ?? 'balanced'];
   }
@@ -636,6 +723,14 @@ export class MatchEngine {
       })[0];
   }
 
+  /** Balón parado que se cuelga al área: córner o falta lateral cercana. */
+  private isDelivery(kind: RestartKind, direct: boolean, side: TeamSide, x: number, y: number) {
+    if (kind === 'corner') return true;
+    if (kind !== 'freekick' || direct) return false;
+    const d = Math.hypot(this.goalX(side) - x, W / 2 - y);
+    return this.depthOf(side, x) > 62 && d < 42;
+  }
+
   private startRestart(kind: RestartKind, side: TeamSide, x: number, y: number, direct = false) {
     let taker: Agent;
     if (kind === 'goalkick') taker = this.gk(side);
@@ -649,7 +744,19 @@ export class MatchEngine {
     for (const a of this.agents) a.runLeft = 0;
     this.ball = { x, y, vx: 0, vy: 0, ownerId: null, flight: null };
     const setPiece = kind === 'penalty' || direct;
-    this.restart = { side, takerId: taker.id, x, y, timer: setPiece ? 4 : kind === 'corner' ? 3 : 2.2, minWait: setPiece ? 2.4 : kind === 'corner' ? 1.6 : 0, kind, direct };
+    const delivery = this.isDelivery(kind, direct, side, x, y);
+    this.restart = {
+      side,
+      takerId: taker.id,
+      x,
+      y,
+      // Los centrales necesitan tiempo para subir al área.
+      timer: setPiece ? 4 : delivery ? 5.5 : 2.2,
+      minWait: setPiece ? 2.4 : delivery ? 3.6 : 0,
+      kind,
+      direct,
+      seed: this.rng.int(0, 9999),
+    };
     this.phase = 'restart';
     this.possession = side;
     const labels: Record<RestartKind, string> = {
@@ -689,8 +796,9 @@ export class MatchEngine {
       return;
     }
     this.giveBall(taker, false);
-    if (r.kind === 'corner') {
-      const target = this.bestAerialTarget(taker);
+    if (this.isDelivery(r.kind, r.direct, r.side, r.x, r.y)) {
+      if (r.lurkerId) this.secondBall = { lurkerId: r.lurkerId, until: this.time + 6 };
+      const target = this.bestAerialTarget(taker, true);
       if (target) {
         this.pass(taker, target.agent, target.x, target.y, target.p, 'cross');
         return;
@@ -701,18 +809,21 @@ export class MatchEngine {
   }
 
   /** Mejor rematador dentro del área rival para un centro desde la posición del lanzador. */
-  private bestAerialTarget(from: Agent) {
+  private bestAerialTarget(from: Agent, random = false) {
     const side = from.side;
     const def = this.opp(side);
-    let best: { agent: Agent; x: number; y: number; p: number; score: number } | null = null;
+    const all: { agent: Agent; x: number; y: number; p: number; score: number }[] = [];
     for (const r of this.team(side)) {
       if (r === from || r.isGK || !this.inBoxOf(def, r.x, r.y)) continue;
       const aerial = r.attrs.physical * 0.5 + r.attrs.shooting * 0.5;
       const p = this.crossChance(from, r);
       const score = p * (0.6 + aerial / 200);
-      if (!best || score > best.score) best = { agent: r, x: r.x + r.vx * 0.6, y: r.y + r.vy * 0.6, p, score };
+      all.push({ agent: r, x: r.x + r.vx * 0.6, y: r.y + r.vy * 0.6, p, score });
     }
-    return best;
+    if (!all.length) return null;
+    // A balón parado el centro no siempre va al mismo: el que gana la posición remata.
+    if (random) return this.rng.weighted(all, (e) => e.score + 0.08);
+    return all.reduce((a, b) => (b.score > a.score ? b : a));
   }
 
   // ───────────────────────────── Nivel 1 y 2: forma colectiva y por puesto ─────────────────────────────
@@ -778,16 +889,31 @@ export class MatchEngine {
           const myDepth = this.depthOf(side, a.x);
           if (a.runLeft > 0) {
             a.runLeft -= dt;
-            depth = Math.min(lastLine + 7, L - 4);
-            if (a.instruction === 'diagonalRuns' || a.line === 'midfield') lat += (W / 2 - lat) * 0.55;
+            if (a.boxRun) {
+              // Llegada desde segunda línea: al punto de penalti o a la frontal.
+              depth = L - 11 - (a.index % 3) * 3.5;
+              lat = W / 2 + ((a.index % 2 ? 1 : -1) * (3 + (a.index % 4) * 2));
+            } else {
+              depth = Math.min(lastLine + 7, L - 4);
+              if (a.instruction === 'diagonalRuns' || a.line === 'midfield') lat += (W / 2 - lat) * 0.55;
+            }
             a.urgent = true;
           } else if (owner && owner.side === side && this.phase === 'play') {
+            a.boxRun = false;
             const ownerDepth = this.depthOf(side, owner.x);
             const rate = RUN_RATE[a.line] * RUN_MULT[a.instruction] * st.run * (0.6 + a.attrs.pace / 125);
             const eligible = ownerDepth > 28 && ownerDepth < 88 && myDepth > ownerDepth - 10 && lastLine < L - 12;
             if (eligible && this.rng.chance(rate * dt)) {
               a.runLeft = this.rng.range(2.2, 3.6);
               this.emit('run', side, `${a.name} pica al espacio`, false, a.id);
+            } else if (ownerDepth > L - 48 && a !== owner && a.instruction !== 'holdPosition' && myDepth > ownerDepth - 22 && (a.line !== 'attack' || Math.abs(a.anchor.x - 50) > 18)) {
+              // Medios, extremos (entrando desde la banda) y a veces defensas llegan al área.
+              const late = (a.line === 'midfield' ? 0.26 : a.line === 'attack' ? 0.3 : 0.012) * LATE_MULT[a.instruction] * st.run;
+              if (this.rng.chance(late * dt)) {
+                a.runLeft = this.rng.range(3.2, 4.6);
+                a.boxRun = true;
+                this.emit('run', side, `${a.name} llega desde segunda línea`, false, a.id);
+              }
             }
           }
           // Apoyo: si está muy lejos del balón, se acerca para ofrecer línea de pase.
@@ -816,7 +942,9 @@ export class MatchEngine {
           let bd = 11;
           for (const o of opponents) {
             if (o.isGK || o.id === ball.ownerId) continue;
-            const d = Math.hypot(o.x - tx, o.y - ty) - (o.runLeft > 0 ? 4 : 0);
+            // Los rematadores más peligrosos reciben marcaje más estrecho (a veces doble).
+            const danger = o.line === 'attack' ? clamp((o.attrs.shooting - 80) / 4, 0, 3) : 0;
+            const d = Math.hypot(o.x - tx, o.y - ty) - (o.runLeft > 0 ? 4 : 0) - danger;
             if (d < bd) {
               bd = d;
               best = o;
@@ -824,7 +952,8 @@ export class MatchEngine {
           }
           if (best) {
             const goalSide = side === 'home' ? -1.6 : 1.6;
-            const k = best.runLeft > 0 ? 0.65 : 0.45;
+            const star = best.line === 'attack' && best.attrs.shooting >= 86;
+            const k = best.runLeft > 0 ? (star ? 0.82 : 0.65) : star ? 0.55 : 0.45;
             tx += (best.x + goalSide - tx) * k;
             ty += (best.y - ty) * k;
             if (best.runLeft > 0) a.urgent = true;
@@ -932,12 +1061,14 @@ export class MatchEngine {
       return;
     }
 
-    if (r.kind === 'corner') {
+    if (this.isDelivery(r.kind, r.direct, r.side, r.x, r.y)) {
       const gx = this.goalX(att);
       const inward = att === 'home' ? -1 : 1;
+      // Suben los mejores en el juego aéreo (centrales incluidos), con algo de azar.
+      const aerial = (a: Agent) => a.attrs.physical * 1.1 + a.attrs.shooting * 0.45 + (((a.index + 1) * 7919 + r.seed) % 23) + (a.line === 'defence' ? 3 : 0);
       const attackers = this.team(att)
         .filter((a) => a !== taker && !a.isGK)
-        .sort((p, q) => q.attrs.physical + q.attrs.shooting - (p.attrs.physical + p.attrs.shooting))
+        .sort((p, q) => aerial(q) - aerial(p))
         .slice(0, 5);
       const spots = [-6, -2.5, 0, 3, 6.5];
       attackers.forEach((a, i) => {
@@ -956,6 +1087,16 @@ export class MatchEngine {
         a.targetY = m.targetY + 0.6;
         a.urgent = true;
       });
+      // Un medio con buen golpeo espera el rechace en la frontal.
+      const lurker = this.team(att)
+        .filter((a) => a !== taker && !a.isGK && !attackers.includes(a) && a.line !== 'defence')
+        .sort((p, q) => q.attrs.shooting - p.attrs.shooting)[0];
+      if (lurker) {
+        r.lurkerId = lurker.id;
+        lurker.targetX = gx + inward * 19;
+        lurker.targetY = W / 2 + (r.seed % 2 ? 3 : -3);
+        lurker.urgent = true;
+      }
     }
   }
 
@@ -1046,6 +1187,11 @@ export class MatchEngine {
         }
       }
       shotUtil *= st.shot;
+      // Con impulso, el jugador busca terminar la jugada.
+      const m = this.mom(owner);
+      if (m > 0 && dGoal < 30) shotUtil = shotUtil * (1 + 0.7 * m) + 0.16 * m;
+      // Llegada desde segunda línea: remate de primeras.
+      if (owner.arrivalUntil > this.time && dGoal < 27) shotUtil += 0.3;
       if (instr === 'shootOnSight') shotUtil *= 1.7;
       if (instr === 'keepPossession') shotUtil *= 0.6;
     }
@@ -1053,12 +1199,18 @@ export class MatchEngine {
     // ── Pases: cortos, largos, al hueco y centros
     type PassOption = { util: number; to: Agent; x: number; y: number; p: number; variant: PassVariant };
     const pick: { best: PassOption | null } = { best: null };
+    const pressedNow = this.nearestOpponentDist(side, owner.x, owner.y) < 2.6 && dGoal < 22;
     const consider = (to: Agent, x: number, y: number, variant: PassVariant, bonus: number) => {
       const p = this.passChance(owner, x, y, variant);
       bonus += variant === 'cross' ? st.cross : st[variant];
+      // Quien llega desde segunda línea suele estar solo: buen destino para el pase atrás.
+      if (to.boxRun && to.runLeft > 0) bonus += 0.5;
+      // Pase de la muerte: si el poseedor está encimado y un compañero está libre ante el portero.
+      if (pressedNow && this.depthOf(side, x) > L - 17 && Math.abs(y - W / 2) < 10 && this.nearestOpponentDist(side, x, y) > 3) bonus += 0.4;
       const rDepth = this.depthOf(side, x);
       const progress = rDepth - myDepth;
-      const zone = rDepth > 82 ? 0.35 : rDepth > 66 ? 0.15 : 0;
+      const central = Math.abs(y - W / 2) < 12;
+      const zone = rDepth > 82 ? (central ? 0.45 : 0.3) : rDepth > 66 ? 0.15 : 0;
       const value = 0.32 + clamp((progress / 35) * (1 + tempo * 0.5), -0.4, 0.85) + zone + bonus;
       const lossCost = 0.25 + (1 - myDepth / L) * 0.45;
       let util =
@@ -1088,7 +1240,7 @@ export class MatchEngine {
     }
     // Centro al área desde la banda.
     if (wide && myDepth > L - 30 && !owner.isGK) {
-      const target = this.bestAerialTarget(owner);
+      const target = this.bestAerialTarget(owner, true);
       if (target) {
         const util = target.p * (0.9 + (target.agent.attrs.shooting - 70) / 100) - (1 - target.p) * 0.25 + st.cross + noise();
         if (!pick.best || util > pick.best.util) pick.best = { util, to: target.agent, x: target.x, y: target.y, p: target.p, variant: 'cross' };
@@ -1131,6 +1283,18 @@ export class MatchEngine {
         util += noise();
         if (!dribble || util > dribble.util) dribble = { util, x: ax, y: ay };
       }
+      // Extremo que recorta hacia dentro para buscar su disparo.
+      const wideNow = myLat < 18 || myLat > W - 18;
+      if (wideNow && owner.line === 'attack' && myDepth > 64 && myDepth < L - 6) {
+        const tx = this.fx(side, Math.min(L - 15, myDepth + 7));
+        const ty = W / 2 + (owner.y < W / 2 ? -7 : 7);
+        const d = Math.hypot(tx - owner.x, ty - owner.y) || 1;
+        const ax = owner.x + ((tx - owner.x) / d) * 6;
+        const ay = owner.y + ((ty - owner.y) / d) * 6;
+        const space = clamp(this.nearestOpponentDist(side, ax, ay) / 8, 0, 1);
+        const util = (0.2 + 0.32 * space) * (0.55 + (dri / 100) * 0.6) * (0.6 + clamp((shooting - 70) / 40, 0, 0.5)) * Math.max(0.4, 1 - owner.carryTime / 4) + noise();
+        if (!dribble || util > dribble.util) dribble = { util, x: ax, y: ay };
+      }
     }
 
     owner.mustPass = false;
@@ -1139,7 +1303,8 @@ export class MatchEngine {
     const takeUtil = takeOn?.util ?? -Infinity;
     const dribUtil = dribble?.util ?? -Infinity;
     const best = Math.max(passUtil, takeUtil, dribUtil);
-    if (shotUtil + noise() > best) {
+    const arriving = owner.arrivalUntil > this.time && dGoal < 30 && shotUtil > 0.12 && this.nearestOpponentDist(side, owner.x, owner.y) > 1.6;
+    if (arriving || shotUtil + noise() > best) {
       this.shoot(owner, shotMode);
     } else if (bestPass && passUtil === best) {
       this.pass(owner, bestPass.to, bestPass.x, bestPass.y, bestPass.p, bestPass.variant);
@@ -1172,6 +1337,7 @@ export class MatchEngine {
     let p = (0.99 - d * 0.0045 * (1.6 - passing)) * (1 - lane * (0.95 - passing * 0.35)) * (1 - rp * 0.25);
     if (lofted) p *= 0.72 + passing * 0.25;
     if (variant === 'through') p *= 0.82 + passing * 0.16;
+    p += this.mom(owner) * 0.04;
     return clamp(p, 0.03, 0.97);
   }
 
@@ -1200,14 +1366,18 @@ export class MatchEngine {
   private takeOnChance(owner: Agent, def: Agent, skill = false) {
     const p =
       0.46 + ((this.att(owner, 'dribbling') - this.att(def, 'defending')) / 100) * 0.8 + ((this.att(owner, 'pace') - this.att(def, 'pace')) / 100) * 0.15;
-    return skill ? clamp(p + 0.11, 0.18, 0.9) : clamp(p, 0.12, 0.86);
+    const m = this.mom(owner) * 0.06;
+    return skill ? clamp(p + 0.11 + m, 0.18, 0.92) : clamp(p + m, 0.12, 0.9);
   }
 
   /** Probabilidad de que una entrada de `d` robe el balón a `owner`. */
   private tackleChance(d: Agent, owner: Agent) {
     return clamp(
-      0.42 + ((this.att(d, 'defending') - this.att(owner, 'dribbling')) / 100) * 0.6 + ((this.att(d, 'physical') - this.att(owner, 'physical')) / 100) * 0.15,
-      0.1,
+      0.42 +
+        ((this.att(d, 'defending') - this.att(owner, 'dribbling')) / 100) * 0.6 +
+        ((this.att(d, 'physical') - this.att(owner, 'physical')) / 100) * 0.15 -
+        this.mom(owner) * 0.12,
+      0.08,
       0.82,
     );
   }
@@ -1348,7 +1518,8 @@ export class MatchEngine {
     const gx = this.goalX(side);
     const dGoal = Math.hypot(gx - a.x, W / 2 - a.y);
     const sho = this.att(a, 'shooting');
-    const pressure = mode === 'penalty' || mode === 'freekick' ? 0 : clamp(1 - this.nearestOpponentDist(side, a.x, a.y) / 3, 0, 1);
+    const m = mode === 'penalty' || mode === 'freekick' ? 0 : this.mom(a);
+    const pressure = mode === 'penalty' || mode === 'freekick' ? 0 : clamp(1 - this.nearestOpponentDist(side, a.x, a.y) / 3, 0, 1) * (1 - m * 0.3);
     const angle = clamp(1 - (Math.abs(a.y - W / 2) - 4) / 26, 0.15, 1);
     const keeper = this.gk(defending);
     const gkSkill = (keeper.stunned > 0 ? 10 : this.att(keeper, 'goalkeeping') * 0.6 + this.att(keeper, 'reflexes') * 0.4) + (style?.gkBonus ?? 0);
@@ -1369,14 +1540,15 @@ export class MatchEngine {
         goalGiven = clamp(0.2 + ((sho - gkSkill) / 100) * 0.5 - (dGoal - 18) * 0.008, 0.05, 0.5);
         break;
       case 'header': {
-        const aerial = sho * 0.6 + this.att(a, 'physical') * 0.4;
+        // Los centrales cabecean bien aunque no sean grandes tiradores.
+        const aerial = Math.max(sho, this.att(a, 'defending') * 0.85) * 0.55 + this.att(a, 'physical') * 0.45;
         onTarget = clamp(0.26 + (aerial / 100) * 0.42 - (dGoal - 6) * 0.02 - pressure * 0.12, 0.1, 0.75);
         goalGiven = clamp(0.32 + ((aerial - gkSkill) / 100) * 0.5 - (dGoal - 7) * 0.02, 0.06, 0.7);
         break;
       }
       default:
         onTarget = clamp(0.34 + (sho / 100) * 0.5 - (dGoal - 10) * 0.012 - pressure * 0.15, 0.1, 0.88);
-        goalGiven = clamp(0.39 + ((sho - gkSkill) / 100) * 0.45 - (dGoal - 11) * 0.016 + (angle - 1) * 0.2, 0.04, 0.85);
+        goalGiven = clamp(0.37 + ((sho - gkSkill) / 100) * 0.45 - (dGoal - 11) * 0.016 + (angle - 1) * 0.2, 0.04, 0.85);
     }
     switch (style?.kind) {
       case 'finesse': {
@@ -1399,6 +1571,11 @@ export class MatchEngine {
         goalGiven = clamp(0.2 + off * 0.075 + (sho - 75) / 150, 0.08, 0.92);
         break;
       }
+    }
+    if (m > 0) {
+      // Jugada trabajada: el rematador llega en ventaja (balanceado: nunca gol seguro).
+      onTarget = clamp(onTarget + 0.07 * m, 0, 0.92);
+      goalGiven = clamp(goalGiven * (1 + 0.2 * m) + 0.03 * m, 0, 0.82);
     }
     return { onTarget, goalGiven, xg: onTarget * goalGiven, dGoal, keeper };
   }
@@ -1557,7 +1734,7 @@ export class MatchEngine {
       if (since < 3) return false;
     } else {
       if (!chain && (since < this.cooldown() || this.time < 15)) return false;
-      if (depth < (chain ? 60 : 56)) return false;
+      if (depth < (chain ? (this.mom(owner) ? 46 : 58) : 56)) return false;
     }
     const specs = oneOnOne ? this.oneOnOneOptions(owner) : this.attackOptions(owner);
     const picked = this.pickOptions(specs);
@@ -2338,6 +2515,18 @@ export class MatchEngine {
     e.decision = { promptId: ctx.promptId, kind: ctx.kind, label: ctx.label, grade, title, detail };
   }
 
+  /** Impulso: el jugador que continúa una jugada acertada llega en ventaja. */
+  private boost(a: Agent, ctx: DecisionCtx, extra: number) {
+    if (ctx.defensive || a.side !== ctx.side) return;
+    a.momentum = clamp(Math.max(this.mom(a), ctx.chain + extra), 1, 3);
+    a.momentumUntil = this.time + MOMENTUM_TIME;
+    a.protectedUntil = Math.max(a.protectedUntil, this.time + 1.2);
+    // Los rivales cercanos tardan en reaccionar.
+    for (const o of this.team(this.opp(a.side))) {
+      if (!o.isGK && Math.hypot(o.x - a.x, o.y - a.y) < 4) o.tackleTimer = Math.max(o.tackleTimer, 0.8);
+    }
+  }
+
   /** La jugada continúa: el siguiente poseedor puede recibir otra decisión. */
   private continueChain(ctx: DecisionCtx, playerId: string, extra = 0) {
     if (ctx.defensive || ctx.chain + 1 > MAX_CHAIN) return;
@@ -2380,8 +2569,9 @@ export class MatchEngine {
           a.targetY = a.dribbleY;
           a.urgent = true;
           a.decisionTimer = 0.55;
-          a.protectedUntil = this.time + 0.6;
           a.carryTime = 0;
+          this.boost(a, ctx, skill ? 2 : 1);
+          a.protectedUntil = this.time + (skill ? 1.2 : 0.9);
           if (skill) this.highlight('skillrun', side, `¡${(o.move ?? 'Filigrana').toUpperCase()}!`, `${a.name} deja sentado a ${t.name}`, a.id, t.id);
           this.result(ctx, skill ? 'great' : 'good', skill ? `¡${(o.move ?? 'Filigrana').toUpperCase()}!` : '¡REGATE CONSEGUIDO!', `${a.name} se va de ${t.name}`, a.id);
           this.continueChain(ctx, a.id, 0.5);
@@ -2411,6 +2601,7 @@ export class MatchEngine {
         a.decisionTimer = hold;
         a.carryTime = 0;
         if (this.rng.chance(p)) {
+          this.boost(a, ctx, 1);
           a.protectedUntil = this.time + hold;
           if (shield) {
             // Los compañeros llegan en apoyo: dos desmarques.
@@ -2691,6 +2882,8 @@ export class MatchEngine {
       };
       const [grade, title, detail] = titles[ctx.kind] ?? ['good', 'BIEN EJECUTADO', ctx.label];
       this.result(ctx, grade, title, detail, received.id);
+      if (received.side === ctx.side && ctx.kind !== 'pass' && ctx.kind !== 'switch') this.boost(received, ctx, grade === 'great' ? 2 : 1);
+      else if (received.side === ctx.side && this.depthOf(side, received.x) > 60) this.boost(received, ctx, 1);
       // Sólo se encadena si la jugada deja al receptor en situación de peligro.
       const rDepth = this.depthOf(side, received.x);
       const promising =
@@ -2768,6 +2961,7 @@ export class MatchEngine {
   private giveBall(a: Agent, contested: boolean) {
     const prev = this.ball.ownerId ? this.byId.get(this.ball.ownerId) : null;
     if (prev && prev !== a) {
+      prev.momentumUntil = 0;
       prev.beaten = 0;
       prev.skillAnnounced = 0;
       prev.oneOnOneAnnounced = false;
@@ -2782,7 +2976,13 @@ export class MatchEngine {
     a.beaten = 0;
     a.skillAnnounced = 0;
     a.oneOnOneAnnounced = false;
+    a.arrivalUntil = a.boxRun && a.runLeft > 0 ? this.time + 2.6 : 0;
+    if (this.secondBall && this.secondBall.lurkerId === a.id && this.time < this.secondBall.until) {
+      a.arrivalUntil = this.time + 1.6;
+      this.secondBall = null;
+    }
     a.runLeft = 0;
+    a.boxRun = false;
     a.dribbleX = a.x;
     a.dribbleY = a.y;
   }
@@ -2848,6 +3048,23 @@ export class MatchEngine {
       case 'complete':
       case 'intercepted': {
         const r = f.targetId ? this.byId.get(f.targetId)! : null;
+        if (r && f.outcome === 'intercepted' && f.variant === 'cross' && this.inBoxOf(r.side, ball.x, ball.y) && this.rng.chance(0.5)) {
+          if (this.rng.chance(0.3)) {
+            // Despeje a córner.
+            this.emit('interception', r.side, `${r.name} despeja a córner`, false, r.id, kicker.id);
+            this.flightDecision(f, r);
+            this.startRestart('corner', side, this.goalX(side) === L ? L - 0.6 : 0.6, ball.y < W / 2 ? 0.6 : W - 0.6);
+            return;
+          }
+          // Despeje de cabeza: el balón cae suelto hacia la frontal.
+          const out = r.side === 'home' ? 1 : -1;
+          ball.vx = out * this.rng.range(9, 15);
+          ball.vy = (W / 2 - ball.y) * this.rng.range(0.2, 0.6) + this.rng.range(-3, 3);
+          this.lastTouch = r.side;
+          this.emit('interception', r.side, `${r.name} despeja de cabeza`, false, r.id, kicker.id);
+          this.flightDecision(f, r);
+          return;
+        }
         if (r && Math.hypot(r.x - ball.x, r.y - ball.y) < 3.4) {
           r.x += (ball.x - r.x) * 0.5;
           r.y += (ball.y - r.y) * 0.5;
@@ -2925,12 +3142,23 @@ export class MatchEngine {
             kicker.id,
           );
         }
-        if (this.rng.chance(0.35 + handling * 0.45)) {
+        const roll = this.rng.next();
+        const hold = 0.35 + handling * 0.45;
+        if (roll < hold) {
           keeper.x = ball.x;
           keeper.y = ball.y;
           this.giveBall(keeper, false);
           keeper.decisionTimer = 1.1;
           keeper.mustPass = true;
+        } else if (roll < hold + (1 - hold) * 0.5) {
+          // Rechace dentro del área: balón vivo para quien llegue primero.
+          const back = side === 'home' ? -1 : 1;
+          ball.x = this.goalX(side) + back * 1.2;
+          ball.vx = back * this.rng.range(7, 12);
+          ball.vy = this.rng.range(-7, 7);
+          keeper.stunned = 0.9;
+          this.lastTouch = keeper.side;
+          this.emit('save', keeper.side, `${keeper.name} rechaza y el balón queda muerto en el área`, true, keeper.id);
         } else {
           const cy = ball.y < W / 2 ? 0.6 : W - 0.6;
           this.startRestart('corner', side, this.goalX(side) === L ? L - 0.6 : 0.6, cy);
@@ -2950,8 +3178,14 @@ export class MatchEngine {
       }
       case 'miss': {
         this.flightDecision(f, null);
-        this.emit('miss', side, `${kicker.name} dispara fuera`, true, kicker.id);
         const def = this.opp(side);
+        // Parte de los disparos fuera los desvía un defensa: córner.
+        if (f.variant !== 'penalty' && this.rng.chance(0.38)) {
+          this.emit('miss', side, `El disparo de ${kicker.name} sale desviado por un defensa`, true, kicker.id);
+          this.startRestart('corner', side, this.goalX(side) === L ? L - 0.6 : 0.6, ball.y < W / 2 ? 0.6 : W - 0.6);
+          return;
+        }
+        this.emit('miss', side, `${kicker.name} dispara fuera`, true, kicker.id);
         this.startRestart('goalkick', def, this.fx(def, 5.5), W / 2 + this.rng.range(-6, 6));
         return;
       }

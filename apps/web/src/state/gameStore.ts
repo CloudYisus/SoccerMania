@@ -29,6 +29,7 @@ import {
   type TeamTactics,
 } from '@fu/domain';
 import { allVersions, catalog, STARTER } from '../data/catalog';
+import { applyResult, CUP_ROUNDS, createCup, cupPlayerName as cupName, emptyCup, normalizeCup, simulatePending, USER_ID, userFixture, type CupMatchReport, type CupState } from './cup';
 
 export interface AiListing {
   id: string;
@@ -65,17 +66,11 @@ export interface DivisionState {
   best: number;
   lastOutcome: 'promoted' | 'relegated' | 'stayed' | null;
 }
-export interface CupState {
-  /** Ronda actual (0 = cuartos, 1 = semis, 2 = final). null = sin participar. */
-  round: number | null;
-  status: 'idle' | 'running' | 'eliminated' | 'won';
-  titles: number;
-}
 
 export const DIVISION_SEASON_GAMES = 7;
 export const PROMOTION_POINTS = 13;
 export const RELEGATION_POINTS = 5;
-export const CUP_ROUNDS = ['Cuartos de final', 'Semifinal', 'Final'] as const;
+export { CUP_ROUNDS } from './cup';
 export const CUP_ENTRY_FEE = 2500;
 
 interface GameData {
@@ -115,7 +110,9 @@ interface GameActions {
   processListings(now: number): MyListing[];
   buyListing(listingId: string): ActionResult;
   refreshMarket(force?: boolean): void;
-  recordMatch(r: Omit<MatchRecord, 'id' | 'at' | 'coins'> & { difficulty: number }): { coins: number; xp: number; levelsGained: number; note?: string };
+  recordMatch(
+    r: Omit<MatchRecord, 'id' | 'at' | 'coins'> & { difficulty: number; cupReport?: CupMatchReport },
+  ): { coins: number; xp: number; levelsGained: number; note?: string };
   startCup(): ActionResult;
   claimChallenge(id: string, reward: number): ActionResult;
   reset(): void;
@@ -170,7 +167,7 @@ function initialData(): GameData {
     market: { listings: generateMarket(seed, now), refreshedAt: now, seed },
     myListings: [],
     division: { level: 10, played: 0, points: 0, wins: 0, draws: 0, losses: 0, best: 10, lastOutcome: null },
-    cup: { round: null, status: 'idle', titles: 0 },
+    cup: emptyCup(),
     challenges: {},
     history: [],
   };
@@ -394,18 +391,25 @@ export const useGame = create<GameState>()(
           } else division = d;
         }
 
-        if (r.mode === 'cup' && cup.status === 'running' && cup.round !== null) {
+        const fx = r.mode === 'cup' && cup.status === 'running' ? userFixture(cup) : undefined;
+        if (fx) {
+          const userHome = fx.home === USER_ID;
+          const pens = r.penalties ? (userHome ? { home: r.penalties.for, away: r.penalties.against } : { home: r.penalties.against, away: r.penalties.for }) : undefined;
+          const result = userHome ? { home: r.goalsFor, away: r.goalsAgainst, pens } : { home: r.goalsAgainst, away: r.goalsFor, pens };
+          cup = applyResult(cup, fx.id, result, r.cupReport ?? { lines: [] });
           if (win) {
-            if (cup.round >= CUP_ROUNDS.length - 1) {
-              cup = { round: null, status: 'won', titles: cup.titles + 1 };
+            if (fx.round >= CUP_ROUNDS.length - 1) {
+              cup = { ...cup, round: null, status: 'won', titles: cup.titles + 1 };
               coins += 25000;
               note = '¡Campeón de la Copa Ultimate! +25.000 monedas';
             } else {
-              cup = { ...cup, round: cup.round + 1 };
-              note = `Clasificado para ${CUP_ROUNDS[cup.round!]}`;
+              // El resto de partidos de la ronda se disputan a la vez.
+              cup = { ...simulatePending(cup, cupName, false), round: fx.round + 1 };
+              note = `Clasificado para ${CUP_ROUNDS[fx.round + 1]}`;
             }
           } else {
-            cup = { ...cup, round: null, status: 'eliminated' };
+            // El torneo sigue sin el usuario hasta coronar campeón.
+            cup = { ...simulatePending(cup, cupName, true), round: null, status: 'eliminated' };
             note = 'Eliminado de la Copa Ultimate';
           }
         }
@@ -431,8 +435,8 @@ export const useGame = create<GameState>()(
         const s = get();
         if (s.cup.status === 'running') return { ok: false, message: 'Ya estás compitiendo en la Copa.' };
         if (s.coins < CUP_ENTRY_FEE) return { ok: false, message: 'Monedas insuficientes para la inscripción.' };
-        set({ coins: s.coins - CUP_ENTRY_FEE, cup: { ...s.cup, round: 0, status: 'running' } });
-        return { ok: true, message: 'Inscripción completada. ¡Cuartos de final!' };
+        set({ coins: s.coins - CUP_ENTRY_FEE, cup: createCup(normalizeCup(s.cup), s.squad.name) });
+        return { ok: true, message: 'Inscripción completada. ¡Sorteo del cuadro realizado!' };
       },
 
       claimChallenge(id, reward) {
@@ -458,7 +462,7 @@ export const useGame = create<GameState>()(
       merge: (persisted, current) => {
         const p = persisted as Partial<GameData> | undefined;
         if (!p?.cards || Object.values(p.cards).some((c) => !catalog.versions.has(c.versionId))) return current;
-        return { ...current, ...p };
+        return { ...current, ...p, cup: normalizeCup(p.cup) };
       },
     },
   ),

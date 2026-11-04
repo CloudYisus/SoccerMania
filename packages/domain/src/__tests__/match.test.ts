@@ -155,3 +155,22 @@ describe('variedad de jugadas y avisos', () => {
     expect(freeKicks).toBeGreaterThan(0);
   });
 });
+
+describe('goleadores variados', () => {
+  it('también marcan centrocampistas y defensas (córners, llegadas, rechaces)', async () => {
+    const { POSITION_LINE } = await import('../players/positions');
+    const lines: Record<string, number> = {};
+    for (let seed = 1; seed <= 24; seed++) {
+      const h = syntheticTeam('h', 82);
+      const a = syntheticTeam('a', 82);
+      const e = new MatchEngine(h, a, seed);
+      e.simulateToEnd();
+      const pos = new Map([...h.players, ...a.players].map((p) => [p.id, p.position]));
+      for (const ev of e.events) if (ev.type === 'goal') lines[POSITION_LINE[pos.get(ev.playerId!)!]] = (lines[POSITION_LINE[pos.get(ev.playerId!)!]] ?? 0) + 1;
+    }
+    const total = Object.values(lines).reduce((x, y) => x + y, 0);
+    expect(lines.midfield ?? 0).toBeGreaterThan(0);
+    expect(lines.defence ?? 0).toBeGreaterThan(0);
+    expect((lines.attack ?? 0) / total).toBeLessThan(0.9);
+  });
+});

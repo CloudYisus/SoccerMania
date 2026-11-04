@@ -20,13 +20,17 @@ import {
   type Level,
   PLAY_STYLES,
 } from '@fu/domain';
-import { createMatchView, type MatchView } from '@fu/match-renderer';
+import { createMatchView, type MatchView, type PlayerToken } from '@fu/match-renderer';
+import { bundledFlagUrl } from '../../assets/assets';
+import { getEdition } from '../../components/card/editions';
+import { version as resolveVersion } from '../../data/catalog';
 import { Icon } from '../../components/ui/icons';
 import { PlayerCard } from '../../components/card/PlayerCard';
 import { Button, Coins, Segmented } from '../../components/ui/ui';
 import { useGame } from '../../state/gameStore';
 import { computeSquadView } from '../../state/squadView';
 import { aiToMatchSetup, userToMatchSetup } from '../../state/teams';
+import { cupPlayerName, reportFromEvents, USER_ID } from '../../state/cup';
 import { useUi } from '../../state/uiStore';
 import './match.css';
 
@@ -62,13 +66,53 @@ function colorDistance(a: string, b: string) {
   return Math.hypot(r1 - r2, g1 - g2, b1 - b2);
 }
 
-/** Evita que ambos equipos vistan colores parecidos. */
+const PITCH_GREEN = '#134a32';
+/** El color del equipo debe destacar sobre el césped (las fichas usan el anillo del kit). */
+function onPitch(c: { primary: string; secondary: string }) {
+  if (colorDistance(c.primary, PITCH_GREEN) >= 120) return c;
+  if (colorDistance(c.secondary, PITCH_GREEN) >= 120) return { primary: c.secondary, secondary: c.primary };
+  return { primary: '#e8ecf2', secondary: c.primary };
+}
+
+/** Evita que ambos equipos vistan colores parecidos (ni parecidos al césped). */
 function resolveKits(home: MatchTeamSetup, away: MatchTeamSetup) {
-  const h = home.colors;
-  let a = away.colors;
-  if (colorDistance(h.primary, a.primary) < 120) a = { primary: a.secondary, secondary: a.primary };
+  const h = onPitch(home.colors);
+  let a = onPitch(away.colors);
+  if (colorDistance(h.primary, a.primary) < 120 && colorDistance(a.secondary, PITCH_GREEN) >= 120) a = { primary: a.secondary, secondary: a.primary };
   if (colorDistance(h.primary, a.primary) < 120) a = { primary: '#e8ecf2', secondary: '#1d2430' };
+  if (colorDistance(h.primary, a.primary) < 120) a = { primary: '#2f6fe0', secondary: '#0b0d11' };
   return { home: h, away: a };
+}
+
+const flagCache = new Map<string, HTMLImageElement>();
+/** Imagen de bandera (cacheada) para las fichas del partido. */
+function flagImage(code: string): HTMLImageElement | null {
+  const url = bundledFlagUrl(code);
+  if (!url) return null;
+  let img = flagCache.get(code);
+  if (!img) {
+    img = new Image();
+    img.decoding = 'async';
+    img.src = url;
+    flagCache.set(code, img);
+  }
+  return img;
+}
+function whenImagesReady(imgs: (HTMLImageElement | null | undefined)[], timeoutMs: number) {
+  const pending = imgs.filter((i): i is HTMLImageElement => !!i && !i.complete);
+  if (!pending.length) return Promise.resolve();
+  return Promise.race([
+    Promise.all(
+      pending.map(
+        (i) =>
+          new Promise<void>((res) => {
+            i.addEventListener('load', () => res(), { once: true });
+            i.addEventListener('error', () => res(), { once: true });
+          }),
+      ),
+    ),
+    new Promise<void>((res) => setTimeout(res, timeoutMs)),
+  ]);
 }
 
 export default function MatchScreen() {
@@ -156,51 +200,89 @@ export default function MatchScreen() {
     }
   };
 
+  /** Identidad de cada ficha: bandera de su nación, color de su edición, Icono. */
+  const tokens = useMemo(() => {
+    const out: Record<string, PlayerToken> = {};
+    for (const p of [...home.players, ...away.players]) {
+      if (!p.versionId) {
+        out[p.id] = { short: p.name };
+        continue;
+      }
+      const r = resolveVersion(p.versionId);
+      const words = r.player.knownAs.split(' ');
+      out[p.id] = {
+        short: r.player.knownAs.length > 11 ? words[words.length - 1] : r.player.knownAs,
+        flagImage: flagImage(r.nation.code),
+        flagKey: r.nation.code,
+        edition: getEdition(r.version.year).accent,
+        icon: r.player.icon,
+        rating: r.version.rating,
+      };
+    }
+    return out;
+  }, [home, away]);
+
   useEffect(() => {
     if (!hostRef.current) return;
-    const view = createMatchView({
-      parent: hostRef.current,
-      home: kits.home,
-      away: kits.away,
-      userSide: 'home',
-      onPlayerClick: (id) => setSelected((s) => (s === id ? null : id)),
-    });
-    viewRef.current = view;
-    let raf = 0;
-    let last = performance.now();
+    let cancelled = false;
     let lastUi = 0;
-    const loop = (now: number) => {
-      const dt = Math.min(0.1, (now - last) / 1000);
-      last = now;
+    let slowShown = false;
+    // Un único bucle: Phaser pide cada fotograma, aquí se avanza el motor.
+    const onFrame = (deltaMs: number) => {
+      const now = performance.now();
+      const dt = Math.min(0.1, deltaMs / 1000);
       const c = control.current;
       const slow = now < c.slowUntil;
       const hold = now < c.holdUntil;
       const pending = engine.decision;
       const speedNow = pending ? DECISION_RATE : slow ? Math.min(c.speed, 1) * 0.6 : c.speed;
       if (!c.paused && !hold && !engine.finished) engine.step(dt * speedNow);
-      const s = engine.getSnapshot();
-      view.update(s);
-      ingestRef.current(engine.drainEvents(), true);
-      if (s.decision !== decisionRef.current) {
-        decisionRef.current = s.decision;
-        setDecision(s.decision);
-        view.setDecision(s.decision, null);
-        if (!s.decision) setFocusOpt(null);
+      const evs = engine.drainEvents();
+      if (evs.length) ingestRef.current(evs, true);
+      const d = engine.decision;
+      if (d !== decisionRef.current) {
+        decisionRef.current = d;
+        setDecision(d);
+        viewRef.current?.setDecision(d, null);
+        if (!d) setFocusOpt(null);
       }
-      if (now - lastUi > 110 || engine.finished) {
-        lastUi = now;
+      // La interfaz (marcador, energía, crónica) no necesita 60 fps.
+      if (now - lastUi > 250 || (engine.finished && lastUi >= 0)) {
+        lastUi = engine.finished ? -1 : now;
+        const s = engine.getSnapshot();
+        viewRef.current?.update(s);
         setSnap(s);
-        setSlowActive(slow);
+        if (slow !== slowShown) {
+          slowShown = slow;
+          setSlowActive(slow);
+        }
       }
-      if (!engine.finished) raf = requestAnimationFrame(loop);
+      return engine.getFrame();
     };
-    raf = requestAnimationFrame(loop);
+    const host = hostRef.current;
+    let view: MatchView | null = null;
+    // Las banderas se cargan antes de crear la escena (texturas circulares una sola vez).
+    void whenImagesReady(Object.values(tokens).map((t) => t.flagImage), 1500).then(() => {
+      if (cancelled) return;
+      view = createMatchView({
+        parent: host,
+        home: kits.home,
+        away: kits.away,
+        userSide: 'home',
+        tokens,
+        onFrame,
+        onPlayerClick: (id) => setSelected((s) => (s === id ? null : id)),
+      });
+      viewRef.current = view;
+      view.update(engine.getSnapshot());
+      view.setDecision(decisionRef.current, null);
+    });
     return () => {
-      cancelAnimationFrame(raf);
-      view.destroy();
+      cancelled = true;
+      view?.destroy();
       viewRef.current = null;
     };
-  }, [engine, kits]);
+  }, [engine, kits, tokens]);
 
   useEffect(() => viewRef.current?.setSelected(selected), [selected]);
   useEffect(() => viewRef.current?.setDecision(decision, focusOpt), [decision, focusOpt]);
@@ -304,7 +386,12 @@ export default function MatchScreen() {
 
   const close = () => {
     if (finished) {
+      const cupReport =
+        req.mode === 'cup'
+          ? reportFromEvents(engine.events, { home: { teamId: USER_ID, setup: home }, away: { teamId: req.opponent.id, setup: away } }, snap.score, cupPlayerName)
+          : undefined;
       const r = useGame.getState().recordMatch({
+        cupReport,
         mode: req.mode,
         opponent: req.opponent.name,
         goalsFor: snap.score.home,

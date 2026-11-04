@@ -291,6 +291,17 @@ export interface DecisionResult {
   detail: string;
 }
 
+/** Estado mínimo para dibujar un fotograma, interpolado entre ticks (sin reservar memoria). */
+export interface RenderFrame {
+  /** Tiempo de motor interpolado. */
+  time: number;
+  phase: MatchPhase;
+  ownerId: string | null;
+  flight: BallFlight | null;
+  ball: { x: number; y: number };
+  players: { id: string; x: number; y: number; stunned: boolean; jump: boolean }[];
+}
+
 export interface MatchSnapshot {
   time: number;
   minute: number;

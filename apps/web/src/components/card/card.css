@@ -85,11 +85,14 @@
 .fu-card__ring::after {
   content: '';
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
+  left: -50%;
+  top: -50%;
+  width: 200%;
+  height: 200%;
   opacity: 0;
-  background: conic-gradient(from var(--holo), transparent 0deg 300deg, rgba(255, 255, 255, 0.05) 318deg, rgba(255, 255, 255, 0.95) 338deg, rgba(255, 255, 255, 0.05) 352deg, transparent 360deg);
+  background: conic-gradient(transparent 0deg 300deg, rgba(255, 255, 255, 0.05) 318deg, rgba(255, 255, 255, 0.95) 338deg, rgba(255, 255, 255, 0.05) 352deg, transparent 360deg);
   mix-blend-mode: overlay;
+  will-change: transform;
 }
 .fu-card__gems {
   position: absolute;
@@ -193,7 +196,20 @@
     0 0 0.5em var(--e-glow),
     0 0 1.3em var(--e-glow),
     inset 0 0 0.35em rgba(255, 255, 255, 0.45);
+}
+/* Respiración del neón: sólo opacidad de una capa (barato). */
+.fu-card[data-frame='neon'] .fu-card__frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    0 0 0.9em var(--e-glow),
+    0 0 2.1em var(--e-glow);
+  opacity: 0;
   animation: neon-breathe 2.8s ease-in-out infinite;
+  will-change: opacity;
 }
 .fu-card[data-frame='neon'] .fu-card__body {
   box-shadow:
@@ -203,11 +219,7 @@
 }
 @keyframes neon-breathe {
   50% {
-    box-shadow:
-      0 0 0 0.06em rgba(0, 0, 0, 0.75),
-      0 0 0.8em var(--e-glow),
-      0 0 2em var(--e-glow),
-      inset 0 0 0.5em rgba(255, 255, 255, 0.6);
+    opacity: 1;
   }
 }
 .fu-card[data-frame='bevel'] {
@@ -225,7 +237,13 @@
 .fu-card[data-motion='holo'] .fu-card__ring::after,
 .fu-card[data-elite='true'] .fu-card__ring::after {
   opacity: 1;
-  animation: holo-spin 5.5s linear infinite;
+  /* Rotación (compositor): no repinta la carta en cada fotograma. */
+  animation: ring-run 5.5s linear infinite;
+}
+@keyframes ring-run {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Nación: bandera a sangre */
@@ -580,4 +598,16 @@
   font-family: var(--font-display);
   font-size: 5em;
   text-transform: uppercase;
+}
+
+/* Tamaño pequeño: atributos compactos para que no se monten */
+.fu-card[data-size='sm'] .fu-card__stats {
+  gap: 0;
+}
+.fu-card[data-size='sm'] .fu-card__stat b {
+  font-size: 1.55em;
+  letter-spacing: -0.03em;
+}
+.fu-card[data-size='sm'] .fu-card__stat span {
+  font-size: 0.72em;
 }

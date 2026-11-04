@@ -119,23 +119,41 @@ describe('decisiones del usuario', () => {
     expect(checked).toBeGreaterThanOrEqual(3);
   });
 
-  it('elegir siempre opciones probables sale mejor que elegir las improbables', () => {
-    const rate = (best: boolean) => {
-      let won = 0;
-      let total = 0;
-      for (let seed = 1; seed <= 6; seed++) {
-        const { e } = playWithDecisions('high', seed, (d) => {
-          const sorted = [...d.options].filter((o) => o.measure === 'success').sort((a, b) => b.chance - a.chance);
-          if (!sorted.length) return null;
-          return (best ? sorted[0] : sorted[sorted.length - 1]).id;
-        });
-        const s = e.getSnapshot().stats.home;
-        won += s.decisionsWon;
-        total += s.decisions;
+  it('la probabilidad mostrada se corresponde con el resultado real', () => {
+    const buckets = { low: [0, 0], high: [0, 0] };
+    for (let seed = 1; seed <= 14; seed++) {
+      const e = new MatchEngine(syntheticTeam('h', 82), syntheticTeam('a', 82), seed);
+      e.setDecisionMode('home', 'high');
+      const rng = createRng(seed);
+      const pend = new Map<number, number>();
+      let last = 0;
+      let seen = 0;
+      while (!e.finished) {
+        e.step(0.1);
+        const d = e.decision;
+        if (d && d.id !== last) {
+          last = d.id;
+          const o = d.options[rng.int(0, d.options.length - 1)];
+          if (o.measure === 'success' && o.kind !== 'tacticalfoul') pend.set(d.id, o.chance);
+          e.choose(d.id, o.id);
+        }
+        for (; seen < e.events.length; seen++) {
+          const ev = e.events[seen];
+          if (!ev.decision || !pend.has(ev.decision.promptId)) continue;
+          const c = pend.get(ev.decision.promptId)!;
+          const b = c < 0.55 ? buckets.low : c >= 0.75 ? buckets.high : null;
+          if (!b) continue;
+          b[0]++;
+          if (ev.decision.grade === 'good' || ev.decision.grade === 'great') b[1]++;
+        }
       }
-      return won / Math.max(1, total);
-    };
-    expect(rate(true)).toBeGreaterThan(rate(false) + 0.1);
+    }
+    const low = buckets.low[1] / buckets.low[0];
+    const high = buckets.high[1] / buckets.high[0];
+    expect(buckets.low[0]).toBeGreaterThan(10);
+    expect(buckets.high[0]).toBeGreaterThan(10);
+    expect(high).toBeGreaterThan(low + 0.2);
+    expect(high).toBeGreaterThan(0.7);
   });
 
   it('si no se decide a tiempo, decide la IA y el partido continúa', () => {
@@ -205,5 +223,46 @@ describe('estilos de la IA rival', () => {
     expect(wings.crosses).toBeGreaterThan(balanced.crosses);
     expect(possession.longs).toBeLessThan(direct.longs);
     expect(direct.longShots).toBeGreaterThan(possession.longShots);
+  });
+});
+
+describe('impulso tras decisiones acertadas', () => {
+  it('una jugada ofensiva bien elegida suele terminar en disparo', () => {
+    let successes = 0;
+    let concluded = 0;
+    for (let seed = 1; seed <= 10; seed++) {
+      const e = new MatchEngine(syntheticTeam('h', 82), syntheticTeam('a', 82), seed);
+      e.setDecisionMode('home', 'medium');
+      let last = 0;
+      let seen = 0;
+      const open: number[] = [];
+      while (!e.finished) {
+        e.step(0.1);
+        const d = e.decision;
+        if (d && d.id !== last) {
+          last = d.id;
+          const best = [...d.options].sort((a, b) => (b.measure === 'goal' ? b.chance * 2.2 : b.chance) - (a.measure === 'goal' ? a.chance * 2.2 : a.chance))[0];
+          e.choose(d.id, best.id);
+        }
+        const t = e.getSnapshot().time;
+        for (; seen < e.events.length; seen++) {
+          const ev = e.events[seen];
+          const dk = ev.decision?.kind;
+          if (ev.side === 'home' && dk && ['dribble', 'skill', 'through', 'onetwo', 'cross'].includes(dk) && (ev.decision!.grade === 'good' || ev.decision!.grade === 'great')) {
+            successes++;
+            open.push(t + 7);
+          }
+          if (ev.side === 'home' && ev.type === 'shot') {
+            while (open.length && open[0] < t) open.shift();
+            if (open.length) {
+              concluded += open.length;
+              open.length = 0;
+            }
+          }
+        }
+      }
+    }
+    expect(successes).toBeGreaterThan(10);
+    expect(concluded / successes).toBeGreaterThan(0.5);
   });
 });

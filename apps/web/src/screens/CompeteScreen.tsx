@@ -7,7 +7,9 @@ import { CHALLENGES } from '../state/challenges';
 import { catalog } from '../data/catalog';
 import { CUP_ENTRY_FEE, CUP_ROUNDS, DIVISION_SEASON_GAMES, PROMOTION_POINTS, RELEGATION_POINTS, useGame } from '../state/gameStore';
 import { useSquadView } from '../state/squadView';
-import { buildOpponent, cupOpponent, divisionOpponent, QUICK_OPPONENTS, type TeamBuild } from '../state/teams';
+import { buildOpponent, divisionOpponent, QUICK_OPPONENTS, type TeamBuild } from '../state/teams';
+import { buildCupTeam, teamOf, USER_ID, userFixture } from '../state/cup';
+import { CupBracket, CupStats } from './CupView';
 import { feedback, useUi, type MatchRequest } from '../state/uiStore';
 import './compete.css';
 
@@ -98,7 +100,13 @@ export function CompeteScreen() {
 
   const quickTeams = useMemo(() => QUICK_OPPONENTS.map(buildOpponent), []);
   const divOpp = useMemo(() => divisionOpponent(division.level, division.played), [division.level, division.played]);
-  const cupOpp = useMemo(() => (cup.round !== null ? cupOpponent(cup.round) : null), [cup.round]);
+  const cupFx = cup.status === 'running' ? userFixture(cup) : undefined;
+  const cupOppId = cupFx ? (cupFx.home === USER_ID ? cupFx.away : cupFx.home) : null;
+  const cupOpp = useMemo(() => {
+    const ref = cupOppId ? teamOf(cup, cupOppId) : undefined;
+    return ref?.source ? buildCupTeam(ref) : null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cupOppId, cup.edition]);
 
   return (
     <div className="compete">
@@ -214,42 +222,40 @@ export function CompeteScreen() {
 
       {mode === 'cup' && (
         <div className="cup">
-          <section className="cup__bracket">
-            {CUP_ROUNDS.map((r, i) => {
-              const state =
-                cup.status === 'won' ? 'done' : cup.round === null ? 'idle' : i < cup.round ? 'done' : i === cup.round ? 'current' : 'next';
-              return (
-                <div key={r} className="cup__round" data-state={state}>
-                  <span className="cup__dot">{state === 'done' ? <Icon.Check size={14} /> : i + 1}</span>
-                  <span className="t-ui">{r}</span>
-                </div>
-              );
-            })}
-            <div className="cup__trophy" data-won={cup.status === 'won'}>
-              <Icon.Trophy size={40} />
-              <span className="t-ui small">Títulos: {cup.titles}</span>
-            </div>
-          </section>
-          {cup.status === 'running' && cupOpp ? (
+          {cup.status === 'running' && cupOpp && cupFx ? (
             <TeamPanel
               team={cupOpp}
-              cta={`Jugar ${CUP_ROUNDS[cup.round!].toLowerCase()}`}
+              cta={`Jugar ${CUP_ROUNDS[cupFx.round].toLowerCase()}`}
               disabled={!view.complete}
-              extra={<p className="muted small">Eliminatoria a partido único. Si hay empate, penaltis.</p>}
-              onPlay={() => play({ mode: 'cup', opponent: cupOpp, difficulty: cupOpp.difficulty, title: `Copa Ultimate · ${CUP_ROUNDS[cup.round!]}` })}
+              extra={<p className="muted small">{CUP_ROUNDS[cupFx.round]} · edición {cup.edition}. Partido único: si hay empate, penaltis.</p>}
+              onPlay={() => play({ mode: 'cup', opponent: cupOpp, difficulty: cupOpp.difficulty, title: `Copa Ultimate · ${CUP_ROUNDS[cupFx.round]}` })}
             />
           ) : (
             <section className="cup__entry panel">
-              <h3 className="t-display">{cup.status === 'won' ? '¡Campeón!' : cup.status === 'eliminated' ? 'Eliminado' : 'Torneo eliminatorio'}</h3>
-              <p className="muted">Tres rondas contra rivales de élite. El campeón gana 25.000 monedas.</p>
+              <h3 className="t-display">
+                {cup.status === 'won' ? '¡Campeón!' : cup.status === 'eliminated' ? 'Eliminado' : 'Copa Ultimate'}
+              </h3>
+              <p className="muted">
+                {cup.status === 'eliminated' && cup.champion
+                  ? `El título fue para ${teamOf(cup, cup.champion)?.name}. `
+                  : ''}
+                Ocho equipos a eliminación directa. Todos los partidos del torneo se juegan con el motor del juego y cuentan para goleadores, asistentes y porterías a cero. El campeón gana 25.000 monedas.
+              </p>
               <div className="cup__fee">
                 <span className="t-ui muted">Inscripción</span>
                 <Coins value={CUP_ENTRY_FEE} />
+                <span className="t-ui muted">· Títulos: {cup.titles}</span>
               </div>
               <Button variant="gold" disabled={coins < CUP_ENTRY_FEE} onClick={() => feedback(useGame.getState().startCup())}>
-                {cup.status === 'idle' ? 'Inscribirse' : 'Inscribirse de nuevo'}
+                {cup.status === 'idle' && cup.edition === 0 ? 'Inscribirse' : 'Nueva edición'}
               </Button>
             </section>
+          )}
+          {cup.fixtures.length > 0 && (
+            <>
+              <CupBracket cup={cup} />
+              <CupStats cup={cup} />
+            </>
           )}
         </div>
       )}
