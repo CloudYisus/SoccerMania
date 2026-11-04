@@ -124,3 +124,23 @@ grandes ligas (96 clubes) y de 28 clubes de ligas secundarias:
 media, y detecta jugadores duplicados. Son datos de demostración aproximados a
 2025-26 con información pública hasta 2025: pueden no reflejar los últimos
 fichajes y no son datos oficiales.
+
+## Nuevas cartas especiales (ampliación)
+
+- **Promociones de la temporada** (jugadores actuales):
+  - Tormenta (12 cartas): azul eléctrico y amarillo, foil de relámpagos que destellan.
+  - Noches de Gala (12 cartas): negro y oro, grabado.
+- **Equipo de la Temporada 2024-25** de cada gran liga (11 cartas cada uno):
+  diseño de cristal en el color de su liga (Premier violeta, LaLiga naranja,
+  Serie A azul, Bundesliga rojo, Ligue 1 turquesa).
+- **16 Iconos nuevos** con sus temporadas de leyenda: Kaká, Beckham, Lampard,
+  Gerrard, Drogba, Raúl, Figo, Nesta, Cannavaro, Shevchenko, Del Piero, Totti,
+  Van Basten, Gullit, Lahm y Klose.
+- **Grandes temporadas** de estrellas actuales (Messi '15, Cristiano '08,
+  Neymar '15, Suárez '14, Salah '18, Mbappé '17, Haaland '21, Kane '18…).
+- **Mundial 2010**: Forlán, Sneijder, Robben, Villa, Xabi Alonso, Ramos, Piqué,
+  T. Müller, Özil, Schweinsteiger, Klose y Suárez.
+
+Todas se pueden consultar en la pestaña **Colecciones** (eventos por equipo y
+línea, Iconos, Mundial 2010 y grandes temporadas), con el progreso de la
+colección del usuario.

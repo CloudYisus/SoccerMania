@@ -76,7 +76,7 @@ export const PlayerCard = memo(function PlayerCard({
   const { version, player, club, nation } = resolveVersion(vid);
   const type = versionType(version);
   const event = version.event ? catalog.events.get(version.event) : undefined;
-  const edition = cardTheme(version.year, event?.kind);
+  const edition = cardTheme(version.year, event?.kind, event?.leagueId);
   // Base (temporada actual): sólo el club. Temporadas pasadas: club + año. Eventos: club + temporada.
   const versionLine =
     type === 'base' ? version.label : type === 'event' ? `${club.shortName.charAt(0)}${club.shortName.slice(1).toLowerCase()} ${seasonTag(version.season)}` : versionLabel(version.label, version.season);
@@ -123,7 +123,7 @@ export const PlayerCard = memo(function PlayerCard({
       data-tilt={tilt}
       data-selected={selected ?? false}
       data-dim={dim ?? false}
-      style={{ ...editionStyle(version.year, event?.kind), '--w': width ?? `${WIDTHS[size]}px`, ...style } as CSSProperties}
+      style={{ ...editionStyle(version.year, event?.kind, event?.leagueId), '--w': width ?? `${WIDTHS[size]}px`, ...style } as CSSProperties}
       onMouseMove={onMove}
       onMouseLeave={onLeave}
       onClick={onClick}
@@ -176,7 +176,7 @@ export const PlayerCard = memo(function PlayerCard({
           {event && (
             <div className="fu-card__plaque fu-card__plaque--event" title={event.name}>
               <small>{event.cardName}</small>
-              <b>{event.kind === 'promesas' ? `'${String(event.year).slice(-2)}` : event.year}</b>
+              <b>{event.kind === 'tots' ? catalog.leagues.get(event.leagueId ?? '')?.shortName ?? event.year : event.kind === 'toty' ? event.year : `'${String(event.year).slice(-2)}`}</b>
             </div>
           )}
           {player.icon && (

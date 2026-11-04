@@ -7,7 +7,7 @@ import { allVersions, catalog } from '../data/catalog';
  * usuario busca con filtros y aparecen las ofertas que vendedores IA tienen
  * publicadas en ese momento para esas cartas.
  */
-export type CardTypeFilter = 'all' | 'base' | 'season' | 'icon' | 'toty' | 'promesas';
+export type CardTypeFilter = 'all' | 'base' | 'season' | 'icon' | 'toty' | 'tots' | 'promesas' | 'tormenta' | 'gala';
 
 export interface SearchFilters {
   type: CardTypeFilter;
@@ -36,7 +36,7 @@ export const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀
 export function cardValue(v: PlayerVersion): number {
   const player = catalog.players.get(v.playerId)!;
   const ev = v.event ? catalog.events.get(v.event) : undefined;
-  const mult = ev?.kind === 'toty' ? 1.8 : ev ? 1.35 : player.icon ? 1.5 : versionType(v) === 'season' ? 1.15 : 1;
+  const mult = ev?.kind === 'toty' ? 1.8 : ev?.kind === 'tots' ? 1.6 : ev?.kind === 'tormenta' || ev?.kind === 'gala' ? 1.5 : ev ? 1.35 : player.icon ? 1.5 : versionType(v) === 'season' ? 1.15 : 1;
   return roundPrice(marketValue(v.rating) * mult);
 }
 
@@ -55,7 +55,10 @@ export function matches(v: PlayerVersion, f: SearchFilters): boolean {
       if (!player.icon) return false;
       break;
     case 'toty':
+    case 'tots':
     case 'promesas':
+    case 'tormenta':
+    case 'gala':
       if (ev?.kind !== f.type) return false;
       break;
   }

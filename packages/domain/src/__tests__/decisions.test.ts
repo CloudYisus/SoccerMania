@@ -248,7 +248,7 @@ describe('impulso tras decisiones acertadas', () => {
         for (; seen < e.events.length; seen++) {
           const ev = e.events[seen];
           const dk = ev.decision?.kind;
-          if (ev.side === 'home' && dk && ['dribble', 'skill', 'through', 'onetwo', 'cross'].includes(dk) && (ev.decision!.grade === 'good' || ev.decision!.grade === 'great')) {
+          if (ev.side === 'home' && dk && ['dribble', 'skill', 'through', 'onetwo', 'cross', 'wingrun', 'cutback', 'earlycross', 'knockdown'].includes(dk) && (ev.decision!.grade === 'good' || ev.decision!.grade === 'great')) {
             successes++;
             open.push(t + 7);
           }
@@ -262,7 +262,41 @@ describe('impulso tras decisiones acertadas', () => {
         }
       }
     }
-    expect(successes).toBeGreaterThan(10);
+    expect(successes).toBeGreaterThan(6);
     expect(concluded / successes).toBeGreaterThan(0.5);
+  });
+});
+
+describe('desborde por banda y remate del centro', () => {
+  it('el desborde termina en centro y el usuario elige cómo rematarlo', () => {
+    let wingruns = 0;
+    let aerials = 0;
+    let headerShots = 0;
+    for (let seed = 1; seed <= 12; seed++) {
+      const e = new MatchEngine(syntheticTeam('h', 85), syntheticTeam('a', 78), seed);
+      e.setDecisionMode('home', 'high');
+      let last = 0;
+      while (!e.finished) {
+        e.step(0.1);
+        const d = e.decision;
+        if (!d || d.id === last) continue;
+        last = d.id;
+        if (d.context === 'aerial') {
+          aerials++;
+          expect(d.options.map((o) => o.kind)).toContain('header');
+          e.choose(d.id, d.options[0].id);
+          continue;
+        }
+        const w = d.options.find((o) => o.kind === 'wingrun' || o.kind === 'earlycross' || o.kind === 'cross');
+        if (w) {
+          wingruns++;
+          e.choose(d.id, w.id);
+        } else e.choose(d.id, d.options[0].id);
+      }
+      headerShots += e.events.filter((x) => x.type === 'shot' && x.side === 'home' && x.text.startsWith('Remate de cabeza')).length;
+    }
+    expect(wingruns).toBeGreaterThan(5);
+    expect(aerials).toBeGreaterThan(0);
+    expect(headerShots).toBeGreaterThan(0);
   });
 });

@@ -35,7 +35,8 @@ export type FoilPattern =
   | 'aurora'
   | 'hexgrid'
   | 'stars'
-  | 'sparkle';
+  | 'sparkle'
+  | 'bolts';
 
 export type FoilMotion = 'none' | 'sweep' | 'holo' | 'pulse';
 /** Ornamento del marco. */
@@ -219,8 +220,64 @@ export const EVENT_THEMES: Record<string, Omit<EditionTheme, 'year'>> = {
   },
 };
 
+/** Equipo de la Temporada: misma familia, color propio de cada liga. */
+const TOTS_LEAGUE: Record<string, [string, string, string]> = {
+  'eng-premier': ['#b46cff', '#3d0b6b', 'rgba(170,90,255,.7)'],
+  'esp-laliga': ['#ff7a45', '#5a1405', 'rgba(255,110,60,.7)'],
+  'ita-serie-a': ['#3fb6ff', '#06264f', 'rgba(60,160,255,.7)'],
+  'ger-bundesliga': ['#ff4b5c', '#4a0710', 'rgba(255,70,90,.7)'],
+  'fra-ligue-1': ['#4ff0c4', '#063a35', 'rgba(70,230,190,.7)'],
+};
+function totsTheme(leagueId?: string): Omit<EditionTheme, 'year'> {
+  const [accent, deep, glow] = TOTS_LEAGUE[leagueId ?? ''] ?? ['#7ff5dd', '#06263a', 'rgba(90,220,255,.7)'];
+  return {
+    name: 'Equipo de la Temporada',
+    frame: `linear-gradient(145deg, #ffffff 0%, ${accent} 20%, ${deep} 45%, #e9f6ff 64%, ${deep} 82%, ${accent} 100%)`,
+    base: '#04060c',
+    tint: `linear-gradient(170deg, ${glow.replace('.7', '.45')}, rgba(0,0,0,.35))`,
+    rating: `linear-gradient(180deg, #ffffff 0%, #e9f6ff 45%, ${accent} 100%)`,
+    accent,
+    glow,
+    foil: 'crystal',
+    foilInk: 'rgba(255,255,255,.35)',
+    motion: 'holo',
+    frameStyle: 'double',
+    shape: 'notched',
+  };
+}
+
+EVENT_THEMES.tormenta = {
+  name: 'Tormenta',
+  frame: 'linear-gradient(145deg, #f2fbff 0%, #39b6ff 20%, #101a4a 45%, #ffe94d 62%, #0b1036 82%, #5ad1ff 100%)',
+  base: '#05071a',
+  tint: 'linear-gradient(160deg, rgba(60,150,255,.5), rgba(255,230,70,.25))',
+  rating: fill('#fffbe0', '#ffe94d'),
+  accent: '#ffe94d',
+  glow: 'rgba(80,180,255,.8)',
+  foil: 'bolts',
+  foilInk: 'rgba(255,240,120,.8)',
+  motion: 'holo',
+  frameStyle: 'neon',
+  shape: 'sharp',
+};
+EVENT_THEMES.gala = {
+  name: 'Noches de Gala',
+  frame: 'linear-gradient(145deg, #fff7dc 0%, #d9b45a 22%, #0d0d10 46%, #f6e4ad 64%, #111114 82%, #c99a3a 100%)',
+  base: '#050505',
+  tint: 'linear-gradient(170deg, rgba(255,215,130,.25), rgba(0,0,0,.5))',
+  rating: fill('#fff3cf', '#e7c36f'),
+  accent: '#f1d38a',
+  glow: 'rgba(255,215,130,.6)',
+  foil: 'stars',
+  foilInk: 'rgba(255,230,170,.9)',
+  motion: 'sweep',
+  frameStyle: 'filigree',
+  shape: 'arched',
+};
+
 /** Tema de una carta: el del evento si lo tiene; si no, el de su año. */
-export function cardTheme(year: number, eventKind?: string): EditionTheme {
+export function cardTheme(year: number, eventKind?: string, leagueId?: string): EditionTheme {
+  if (eventKind === 'tots') return { ...totsTheme(leagueId), year };
   const ev = eventKind ? EVENT_THEMES[eventKind] : undefined;
   return ev ? { ...ev, year } : getEdition(year);
 }
@@ -230,8 +287,8 @@ export function getEdition(year: number): EditionTheme {
 }
 
 /** Variables CSS de una edición (para cartas, filas, etiquetas, sobres…). */
-export function editionStyle(year: number, eventKind?: string): CSSProperties {
-  const e = cardTheme(year, eventKind);
+export function editionStyle(year: number, eventKind?: string, leagueId?: string): CSSProperties {
+  const e = cardTheme(year, eventKind, leagueId);
   return {
     '--e-frame': e.frame,
     '--e-base': e.base,

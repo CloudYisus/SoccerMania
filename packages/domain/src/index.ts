@@ -19,3 +19,4 @@ export * from './match/types';
 export * from './match/engine';
 export * from './match/setup';
 export * from './match/penalties';
+export * from './match/ratings';

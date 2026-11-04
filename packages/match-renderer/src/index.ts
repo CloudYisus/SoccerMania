@@ -42,6 +42,8 @@ export interface MatchViewOptions {
   onPlayerClick?: (playerId: string) => void;
 }
 
+export type EffectKind = 'dribble' | 'skill' | 'tackle' | 'save' | 'goal' | 'post' | 'foul' | 'card' | 'interception';
+
 export interface MatchView {
   /** Metadatos (energía, nombres…): basta con unas pocas veces por segundo. */
   update(snapshot: MatchSnapshot): void;
@@ -50,6 +52,8 @@ export interface MatchView {
   spotlight(playerId: string): void;
   /** Dibuja las opciones de una decisión pendiente (null para ocultarlas). */
   setDecision(decision: DecisionPrompt | null, focusOptionId?: string | null): void;
+  /** Efecto visual de un acontecimiento sobre un jugador o sobre el balón. */
+  effect(kind: EffectKind, playerId?: string): void;
   destroy(): void;
 }
 
@@ -110,6 +114,10 @@ class MatchScene extends Phaser.Scene {
   private pulse = 0;
   private meta: MatchSnapshot | null = null;
   private ready = false;
+  private trail: { x: number; y: number }[] = [];
+  private trailG!: Phaser.GameObjects.Graphics;
+  private trailColor = 0xffffff;
+  private ballXY = { x: 0, y: 0 };
 
   constructor(
     private opts: MatchViewOptions,
@@ -149,6 +157,104 @@ class MatchScene extends Phaser.Scene {
       });
     }
   }
+  /** Efectos de acontecimientos (todos con tweens cortos que se autodestruyen). */
+  effect(kind: EffectKind, playerId?: string) {
+    if (!this.ready) return;
+    const s = playerId ? this.sprites.get(playerId) : undefined;
+    const x = s ? s.x : this.ballXY.x;
+    const y = s ? s.y : this.ballXY.y;
+    const ring = (color: number, r0: number, r1: number, dur: number, width = 3) => {
+      const c = this.add.circle(x, y, r0, 0, 0).setStrokeStyle(width, color, 1).setDepth(36);
+      this.tweens.add({ targets: c, radius: r1, alpha: 0, duration: dur, ease: 'Cubic.easeOut', onComplete: () => c.destroy() });
+    };
+    const burst = (color: number, n: number, dist: number, size = 2.5, dur = 500) => {
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + Math.random() * 0.4;
+        const d = this.add.circle(x, y, size, color, 1).setDepth(37);
+        this.tweens.add({ targets: d, x: x + Math.cos(a) * dist, y: y + Math.sin(a) * dist, alpha: 0, scale: 0.4, duration: dur, ease: 'Cubic.easeOut', onComplete: () => d.destroy() });
+      }
+    };
+    const popText = (text: string, color: string, bg: string) => {
+      const t = this.add
+        .text(x, y - 26, text, { fontFamily: 'Barlow Condensed, Arial Narrow, sans-serif', fontSize: '14px', fontStyle: '800', color, backgroundColor: bg, padding: { x: 5, y: 2 }, resolution: this.dpr })
+        .setOrigin(0.5)
+        .setDepth(45)
+        .setScale(0.4);
+      this.tweens.add({ targets: t, scale: 1, y: y - 40, duration: 260, ease: 'Back.easeOut' });
+      this.tweens.add({ targets: t, alpha: 0, delay: 1100, duration: 400, onComplete: () => t.destroy() });
+    };
+    switch (kind) {
+      case 'dribble': {
+        // Estela curva alrededor del regateador.
+        const g = this.add.graphics().setDepth(35);
+        g.lineStyle(3, 0xf3d99b, 0.9);
+        g.beginPath();
+        g.arc(x, y, 20, -0.4, Math.PI * 0.9, false);
+        g.strokePath();
+        this.tweens.add({ targets: g, alpha: 0, angle: 140, duration: 520, ease: 'Cubic.easeOut', onComplete: () => g.destroy() });
+        break;
+      }
+      case 'skill': {
+        ring(0xf3d99b, 10, 42, 650, 3.5);
+        burst(0xfff1c4, 10, 34, 2.4, 650);
+        popText('¡FILIGRANA!', '#1a1204', '#f3d99b');
+        break;
+      }
+      case 'tackle':
+        burst(0xd8e6dc, 8, 18, 2.2, 380);
+        ring(0xffffff, 6, 22, 360, 2);
+        break;
+      case 'interception':
+        ring(0x6cc4ff, 6, 24, 420, 2.5);
+        break;
+      case 'save':
+        ring(0x9fd2ff, 8, 34, 520, 3.5);
+        burst(0xffffff, 8, 26, 2.2, 450);
+        popText('¡PARADA!', '#06121f', '#9fd2ff');
+        break;
+      case 'post':
+        ring(0xffffff, 4, 40, 520, 4);
+        burst(0xffffff, 12, 30, 2, 500);
+        this.cameras.main.shake(160, 0.003);
+        popText('¡PALO!', '#0b0c0f', '#ffffff');
+        break;
+      case 'foul':
+        popText('FALTA', '#ffffff', 'rgba(20,20,24,0.92)');
+        ring(0xffd38a, 6, 24, 420, 2.5);
+        break;
+      case 'card': {
+        const c = this.add.rectangle(x + 10, y - 30, 11, 15, 0xffe14d).setStrokeStyle(1.5, 0x5a4a00).setDepth(46).setAngle(-12).setScale(0.2);
+        this.tweens.add({ targets: c, scale: 1.4, angle: 8, duration: 280, ease: 'Back.easeOut' });
+        this.tweens.add({ targets: c, alpha: 0, y: y - 44, delay: 1300, duration: 500, onComplete: () => c.destroy() });
+        break;
+      }
+      case 'goal': {
+        // Onda en la red y confeti dorado.
+        for (let i = 0; i < 3; i++) {
+          const c = this.add.circle(x, y, 6, 0, 0).setStrokeStyle(3, 0xffffff, 0.9).setDepth(36);
+          this.tweens.add({ targets: c, radius: 60, alpha: 0, delay: i * 140, duration: 700, ease: 'Cubic.easeOut', onComplete: () => c.destroy() });
+        }
+        const colors = [0xf3d99b, 0xffffff, 0x39d98a, 0x6cc4ff, 0xff6b6b];
+        for (let i = 0; i < 40; i++) {
+          const d = this.add.rectangle(x, y, 3, 6, colors[i % colors.length]).setDepth(38).setAngle(Math.random() * 360);
+          const a = Math.random() * Math.PI * 2;
+          const dist = 30 + Math.random() * 110;
+          this.tweens.add({
+            targets: d,
+            x: x + Math.cos(a) * dist,
+            y: y + Math.sin(a) * dist + 40,
+            angle: d.angle + 360,
+            alpha: 0,
+            duration: 1200 + Math.random() * 600,
+            ease: 'Cubic.easeOut',
+            onComplete: () => d.destroy(),
+          });
+        }
+        break;
+      }
+    }
+  }
+
   setDecision(d: DecisionPrompt | null, focus: string | null) {
     this.focus = focus;
     // Antes de create() la escena aún no puede crear objetos: se aplica al arrancar.
@@ -190,6 +296,7 @@ class MatchScene extends Phaser.Scene {
     this.ownerMarker = this.add.triangle(0, 0, 0, 0, 10, 0, 5, 7, 0xf3d99b).setDepth(31).setVisible(false);
     this.goalFlash = this.add.rectangle(W / 2, H / 2, W, H, 0xf3d99b, 0).setDepth(50);
     this.decoG = this.add.graphics().setDepth(40);
+    this.trailG = this.add.graphics().setDepth(29);
     this.ready = true;
     if (this.meta) this.setMeta(this.meta);
     if (this.decision) {
@@ -432,7 +539,10 @@ class MatchScene extends Phaser.Scene {
         s.tag.setVisible(!big);
       }
       s.container.setDepth(isSel ? 20 : p.id === ownerId ? 15 : 10);
-      s.container.setAlpha(p.stunned ? 0.62 : 1);
+      s.container.setAlpha(p.stunned && !p.dive ? 0.62 : 1);
+      // Estirada: la ficha se alarga en la dirección del salto.
+      if (p.dive) s.container.setScale(1.35, 0.78);
+      else if (s.container.scaleX !== 1) s.container.setScale(1);
     }
 
     // Balón: altura visual en pases largos y disparos (sólo estética)
@@ -448,6 +558,24 @@ class MatchScene extends Phaser.Scene {
     }
     this.ballShadow.setPosition(bx + lift * 0.6, by + 3 + lift * 0.3).setScale(1 - Math.min(0.4, lift / 30));
     this.ball.setPosition(bx, by - lift).setScale(1 + lift / 40);
+    this.ballXY.x = bx;
+    this.ballXY.y = by;
+    // Estela del balón en disparos y envíos largos.
+    const tg = this.trailG;
+    if (f && (f.kind === 'shot' || f.lofted)) {
+      this.trailColor = f.kind === 'shot' ? 0xf3d99b : 0xffffff;
+      this.trail.push({ x: bx, y: by - lift });
+      if (this.trail.length > 14) this.trail.shift();
+    } else if (this.trail.length) {
+      this.trail.shift();
+    }
+    tg.clear();
+    for (let i = 1; i < this.trail.length; i++) {
+      const a = this.trail[i - 1];
+      const b = this.trail[i];
+      tg.lineStyle(1 + (i / this.trail.length) * 4, this.trailColor, (i / this.trail.length) * 0.55);
+      tg.lineBetween(a.x, a.y, b.x, b.y);
+    }
 
     const owner = ownerId ? this.sprites.get(ownerId) : null;
     this.ownerMarker.setVisible(!!owner && !this.decision);
@@ -552,6 +680,7 @@ export function createMatchView(opts: MatchViewOptions): MatchView {
     setSelected: (id) => scene.setSelected(id),
     spotlight: (id) => scene.spotlight(id),
     setDecision: (d, focus) => scene.setDecision(d, focus ?? null),
+    effect: (kind, id) => scene.effect(kind, id),
     destroy: () => game.destroy(true),
   };
 }

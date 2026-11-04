@@ -3,6 +3,7 @@ import {
   calculateChemistry,
   FORMATION_IDS,
   INSTRUCTIONS,
+  instructionsFor,
   MENTALITY_LABELS,
   positionFit,
   POSITION_LABELS,
@@ -405,12 +406,13 @@ function SelectedPanel({
           <label className="select select--block">
             <span className="t-ui">Instrucción por defecto</span>
             <select value={instructions[r.card.id] ?? 'none'} onChange={(e) => setInstruction(r.card.id, e.target.value as PlayerInstruction)}>
-              {INSTRUCTIONS.map((i) => (
+              {roleInstructions(slotPos ?? r.position, instructions[r.card.id]).map((i) => (
                 <option key={i.id} value={i.id}>
                   {i.label}
                 </option>
               ))}
             </select>
+            <span className="muted small">{INSTRUCTIONS.find((i) => i.id === (instructions[r.card.id] ?? 'none'))?.description}</span>
           </label>
         )}
         {r && (
@@ -496,4 +498,11 @@ function TacticsDrawer({ open, onClose, view }: { open: boolean; onClose: () => 
       </div>
     </Drawer>
   );
+}
+
+/** Instrucciones del puesto (más la actual si viene de una versión anterior). */
+function roleInstructions(position: string, current?: PlayerInstruction) {
+  const list = instructionsFor(position);
+  const cur = current ? INSTRUCTIONS.find((i) => i.id === current) : undefined;
+  return cur && !list.includes(cur) ? [...list, cur] : list;
 }

@@ -9,6 +9,7 @@ import { ClubScreen } from './screens/ClubScreen';
 import { MarketScreen } from './screens/MarketScreen';
 import { PacksScreen } from './screens/packs/PacksScreen';
 import { CompeteScreen } from './screens/CompeteScreen';
+import { CollectionsScreen } from './screens/CollectionsScreen';
 import { version } from './data/catalog';
 import { afterTax } from '@fu/domain';
 import './styles/shell.css';
@@ -22,6 +23,7 @@ const SCREENS: Record<Tab, () => ReactNode> = {
   market: () => <MarketScreen />,
   packs: () => <PacksScreen />,
   compete: () => <CompeteScreen />,
+  collections: () => <CollectionsScreen />,
 };
 
 interface Layer {

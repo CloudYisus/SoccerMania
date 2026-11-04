@@ -260,3 +260,69 @@
 .fu-card[data-size='xs'] .fu-card__icon svg + span + svg {
   display: none;
 }
+
+[data-foil='bolts'] {
+  background:
+    linear-gradient(115deg, transparent 46%, var(--i) 47% 49%, transparent 50%) 0 0 / 2.4em 3.2em,
+    linear-gradient(65deg, transparent 46%, var(--i) 47% 49%, transparent 50%) 1.2em 1.6em / 2.4em 3.2em,
+    radial-gradient(circle at 50% 30%, rgba(120, 200, 255, 0.35), transparent 60%);
+  mix-blend-mode: screen;
+}
+
+/* Tormenta: relámpagos que destellan */
+.fu-card[data-event='tormenta'] .fu-card__foil {
+  animation: storm-flash 3.4s steps(1) infinite;
+}
+@keyframes storm-flash {
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+  42% {
+    opacity: 1;
+    filter: brightness(1.8);
+  }
+  44% {
+    opacity: 0.6;
+  }
+  46% {
+    opacity: 1;
+    filter: brightness(2);
+  }
+}
+.fu-card[data-event='tormenta'] .fu-card__name {
+  background: linear-gradient(180deg, #ffffff, #fff3a0 60%, #ffe94d);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0 0.25em rgba(80, 180, 255, 0.9));
+}
+/* Noches de Gala: negro y oro */
+.fu-card[data-event='gala'] .fu-card__panel {
+  background:
+    radial-gradient(90% 60% at 50% 0%, rgba(241, 211, 138, 0.25), transparent 70%),
+    repeating-linear-gradient(90deg, rgba(241, 211, 138, 0.06) 0 0.06em, transparent 0.06em 0.9em);
+}
+.fu-card[data-event='gala'] .fu-card__name {
+  background: linear-gradient(180deg, #fffaf0, #f1d38a 60%, #b8862f);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0.06em 0.1em rgba(0, 0, 0, 0.9));
+}
+/* Equipo de la Temporada: cristal en el color de la liga */
+.fu-card[data-event='tots'] .fu-card__panel {
+  background:
+    linear-gradient(120deg, transparent 30%, color-mix(in srgb, var(--e-accent) 22%, transparent) 50%, transparent 70%),
+    radial-gradient(90% 60% at 50% 0%, color-mix(in srgb, var(--e-accent) 30%, transparent), transparent 70%);
+}
+.fu-card[data-event='tots'] .fu-card__name {
+  background: linear-gradient(180deg, #ffffff, #e9f6ff 55%, var(--e-accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0.06em 0.1em rgba(0, 0, 0, 0.85));
+}

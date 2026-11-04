@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createRng } from '@fu/shared';
 import {
   INSTRUCTIONS,
+  matchRatings,
+  instructionsFor,
   MatchEngine,
   matchReward,
   MENTALITY_LABELS,
@@ -170,7 +172,20 @@ export default function MatchScreen() {
     if (important.length) setFeed((f) => [...[...important].reverse(), ...f].slice(0, 60));
     if (!live) return;
     const now = performance.now();
+    const view = viewRef.current;
     for (const e of evs) {
+      // Efectos sobre el campo.
+      if (view) {
+        if (e.type === 'dribble') view.effect('dribble', e.playerId);
+        else if (e.type === 'tackle') view.effect('tackle', e.otherId ?? e.playerId);
+        else if (e.type === 'interception') view.effect('interception', e.playerId);
+        else if (e.type === 'save') view.effect('save', e.playerId);
+        else if (e.type === 'goal') view.effect('goal');
+        else if (e.type === 'miss' && e.text.includes('palo')) view.effect('post');
+        else if (e.type === 'foul') view.effect('foul', e.otherId);
+        else if (e.type === 'card') view.effect('card', e.playerId);
+        else if (e.highlight?.kind === 'skillrun' && e.highlight.title !== '¡DESBORDE!') view.effect('skill', e.playerId);
+      }
       if (e.decision) {
         setResult(e);
         continue;
@@ -383,6 +398,12 @@ export default function MatchScreen() {
   }, [finished, req.mode, snap.score, snap.time, home, away]);
 
   const reward = finished ? matchReward(snap.score.home, snap.score.away, req.difficulty) : null;
+  // Mejor jugador del partido (de cualquiera de los dos equipos).
+  const motm = useMemo(
+    () => (finished ? matchRatings(engine.events, { home, away }, snap.score)[0] : undefined),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [finished],
+  );
 
   const close = () => {
     if (finished) {
@@ -574,7 +595,7 @@ export default function MatchScreen() {
             </ul>
             {sel && (
               <div className="instr-grid">
-                {INSTRUCTIONS.map((i) => (
+                {[...instructionsFor(sel.position), ...(instructionsFor(sel.position).some((i) => i.id === sel.instruction) ? [] : INSTRUCTIONS.filter((i) => i.id === sel.instruction))].map((i) => (
                   <button key={i.id} className="instr" data-active={sel.instruction === i.id} onClick={() => setInstruction(sel.id, i.id)} title={i.description}>
                     {i.label}
                   </button>
@@ -630,6 +651,30 @@ export default function MatchScreen() {
             {penalties && (
               <div className="summary__pens t-ui">
                 Penaltis: {penalties.for} – {penalties.against} · {penalties.for > penalties.against ? 'Clasificado' : 'Eliminado'}
+              </div>
+            )}
+            {motm && (
+              <div className="motm" data-mine={motm.side === 'home'}>
+                {motm.versionId && <PlayerCard versionId={motm.versionId} size="sm" />}
+                <div className="motm__info">
+                  <span className="t-eyebrow">Mejor del partido</span>
+                  <b className="t-display">{motm.name}</b>
+                  <span className="muted small">{motm.side === 'home' ? home.name : away.name}</span>
+                  <span className="motm__line t-ui">
+                    {[
+                      motm.goals && `${motm.goals} ${motm.goals === 1 ? 'gol' : 'goles'}`,
+                      motm.assists && `${motm.assists} asist.`,
+                      motm.saves && `${motm.saves} ${motm.saves === 1 ? 'parada' : 'paradas'}`,
+                      motm.dribbles && `${motm.dribbles} ${motm.dribbles === 1 ? 'regate' : 'regates'}`,
+                      motm.tackles + motm.interceptions && `${motm.tackles + motm.interceptions} ${motm.tackles + motm.interceptions === 1 ? 'recuperación' : 'recuperaciones'}`,
+                      motm.passes && `${motm.passes} pases`,
+                    ]
+                      .filter(Boolean)
+                      .slice(0, 4)
+                      .join(' · ')}
+                  </span>
+                </div>
+                <span className="motm__rating t-num">{motm.rating.toFixed(1)}</span>
               </div>
             )}
             <table className="summary__stats">
@@ -741,6 +786,7 @@ const CONTEXT_LABEL: Record<DecisionPrompt['context'], string> = {
   setpiece: 'Balón parado',
   defense: 'Defensa',
   keeper: 'Portero',
+  aerial: 'Remate',
 };
 const LIKELIHOOD_SUCCESS: Record<Likelihood, string> = {
   'very-high': 'Muy probable',

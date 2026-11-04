@@ -9,12 +9,14 @@ import { GER } from './seed/squads/ger';
 import { FRA } from './seed/squads/fra';
 import { REST } from './seed/squads/rest';
 import { eventCatalog, EVENTS } from './seed/events';
+import { historyCatalog } from './seed/history';
 
 /** Ligas principales con plantilla completa de todos sus clubes. */
 export const BIG_FIVE = ['eng-premier', 'esp-laliga', 'ita-serie-a', 'ger-bundesliga', 'fra-ligue-1'] as const;
 
 const expanded = expandSquads([...ENG, ...ESP, ...ITA, ...GER, ...FRA, ...REST], { clubs: CLUBS, players: PLAYERS, versions: VERSIONS });
-const withEvents = eventCatalog(expanded.players);
+const withHistory = historyCatalog(expanded.players, expanded.versions);
+const withEvents = eventCatalog(withHistory.players);
 
 export { STARTER, OPPONENTS, type OpponentDefinition } from './seed/starter';
 export { MANAGERS, EVENTS };
@@ -31,7 +33,7 @@ export const demoCatalogData: CatalogData = {
   leagues: LEAGUES,
   clubs: expanded.clubs,
   players: withEvents.players,
-  versions: [...expanded.versions, ...withEvents.versions],
+  versions: [...expanded.versions, ...withHistory.versions, ...withEvents.versions],
   events: EVENTS,
 };
 

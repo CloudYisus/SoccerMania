@@ -1,13 +1,14 @@
 import { create } from 'zustand';
 import type { TeamBuild } from './teams';
 
-export type Tab = 'home' | 'squad' | 'club' | 'market' | 'packs' | 'compete';
+export type Tab = 'home' | 'squad' | 'club' | 'market' | 'packs' | 'compete' | 'collections';
 export const TABS: { id: Tab; label: string }[] = [
   { id: 'home', label: 'Inicio' },
   { id: 'squad', label: 'Plantilla' },
   { id: 'club', label: 'Club' },
   { id: 'market', label: 'Mercado' },
   { id: 'packs', label: 'Sobres' },
+  { id: 'collections', label: 'Colecciones' },
   { id: 'compete', label: 'Competir' },
 ];
 

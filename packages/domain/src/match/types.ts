@@ -214,6 +214,14 @@ export type DecisionKind =
   | 'longshot'
   | 'chip'
   | 'roundkeeper'
+  | 'wingrun'
+  | 'cutback'
+  | 'earlycross'
+  // Remate tras un centro
+  | 'header'
+  | 'header-down'
+  | 'volley'
+  | 'knockdown'
   // Balón parado
   | 'pen-left'
   | 'pen-right'
@@ -235,7 +243,7 @@ export type DecisionKind =
   | 'gk-stay';
 
 export type DecisionFamily = 'move' | 'pass' | 'shot' | 'defense';
-export type DecisionContext = 'attack' | 'oneonone' | 'setpiece' | 'defense' | 'keeper';
+export type DecisionContext = 'attack' | 'oneonone' | 'setpiece' | 'defense' | 'keeper' | 'aerial';
 /** Indicador cualitativo de probabilidad. */
 export type Likelihood = 'very-high' | 'high' | 'medium' | 'low' | 'very-low';
 export type Level = 'low' | 'medium' | 'high';
@@ -299,7 +307,7 @@ export interface RenderFrame {
   ownerId: string | null;
   flight: BallFlight | null;
   ball: { x: number; y: number };
-  players: { id: string; x: number; y: number; stunned: boolean; jump: boolean }[];
+  players: { id: string; x: number; y: number; stunned: boolean; jump: boolean; dive: boolean }[];
 }
 
 export interface MatchSnapshot {

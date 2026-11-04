@@ -282,6 +282,8 @@
 }
 .summary__card {
   width: min(640px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -929,5 +931,58 @@
   .dresult {
     bottom: auto;
     top: 10px;
+  }
+}
+
+/* Mejor del partido */
+.motm {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  background:
+    radial-gradient(120% 120% at 0% 50%, rgba(243, 217, 155, 0.18), transparent 60%),
+    rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 0 0 1px rgba(243, 217, 155, 0.35);
+  animation: rise-in 600ms var(--ease-out) both;
+}
+.motm[data-mine='false'] {
+  background:
+    radial-gradient(120% 120% at 0% 50%, rgba(108, 196, 255, 0.16), transparent 60%),
+    rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 0 0 1px rgba(108, 196, 255, 0.35);
+}
+.motm__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.motm__info b {
+  font-size: 28px;
+  line-height: 1;
+}
+.motm__line {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--text-1);
+}
+.motm__rating {
+  font-size: 40px;
+  font-weight: 800;
+  color: var(--gold-1);
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(243, 217, 155, 0.08);
+}
+@media (max-width: 600px) {
+  .motm {
+    grid-template-columns: 1fr auto;
+  }
+  .motm .fu-card {
+    display: none;
   }
 }

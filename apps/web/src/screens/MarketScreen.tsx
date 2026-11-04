@@ -109,6 +109,9 @@ const TYPE_OPTIONS: { id: CardTypeFilter; label: string }[] = [
   { id: 'season', label: 'Temporadas pasadas' },
   { id: 'icon', label: 'Iconos' },
   { id: 'toty', label: 'Equipo del Año' },
+  { id: 'tots', label: 'Equipo de la Temporada' },
+  { id: 'tormenta', label: 'Tormenta' },
+  { id: 'gala', label: 'Noches de Gala' },
   { id: 'promesas', label: 'Promesas' },
 ];
 const POSITION_OPTIONS = [

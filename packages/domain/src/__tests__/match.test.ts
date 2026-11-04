@@ -174,3 +174,24 @@ describe('goleadores variados', () => {
     expect((lines.attack ?? 0) / total).toBeLessThan(0.9);
   });
 });
+
+describe('mejor jugador del partido', () => {
+  it('asigna notas a los 22 jugadores y premia a goleadores y porteros', async () => {
+    const { matchRatings } = await import('../match/ratings');
+    const h = syntheticTeam('h', 84);
+    const a = syntheticTeam('a', 80);
+    const e = new MatchEngine(h, a, 5);
+    e.simulateToEnd();
+    const s = e.getSnapshot();
+    const r = matchRatings(e.events, { home: h, away: a }, s.score);
+    expect(r).toHaveLength(22);
+    for (const x of r) {
+      expect(x.rating).toBeGreaterThanOrEqual(3);
+      expect(x.rating).toBeLessThanOrEqual(10);
+    }
+    const scorer = r.find((x) => x.goals > 0);
+    const quiet = r.filter((x) => x.goals === 0 && x.assists === 0 && x.saves === 0);
+    if (scorer) expect(scorer.rating).toBeGreaterThan(quiet[quiet.length - 1].rating);
+    expect(r[0].rating).toBe(Math.max(...r.map((x) => x.rating)));
+  });
+});

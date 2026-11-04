@@ -188,3 +188,53 @@ Cada ficha es la carta del jugador en miniatura:
 - filete exterior del color de la edición de su carta;
 - dorsal en una chapa y estrella dorada si es Icono;
 - nombre siempre visible.
+
+## Instrucciones por puesto
+
+Cada instrucción tiene un perfil de efectos (`INSTRUCTION_PROFILE`): presión,
+desmarques, llegadas, adelantar o retrasar la posición, ir por dentro o por
+fuera, ganas de disparar o encarar, preferencia por centros, pases largos o al
+hueco, y amenaza aérea. Cada puesto ofrece sólo las suyas:
+
+| Rol | Instrucciones |
+|---|---|
+| Portero | Portero líbero · Bajo palos · Saque largo |
+| Central | Mantener posición · Anticiparse · Salida de balón · Subir a rematar |
+| Lateral/carrilero | Subir por la banda · Lateral por dentro · Mantener posición · Presionar |
+| Centrocampista | Ida y vuelta · Mediocentro posicional · Llegada al área · Organizador · Presionar · Buscar disparos |
+| Extremo/mediapunta | Recortar hacia dentro · Pegado a la banda · Desmarcarse · Buscar disparos · Presionar · Replegarse |
+| Delantero | Cazagoles · Desmarcarse · Referencia · Falso 9 · Presionar |
+
+Las instrucciones de partidas antiguas siguen siendo válidas.
+
+## Más decisiones
+
+- **Desborde por la banda y centro**: carrera a toda velocidad hasta la línea
+  de fondo (ritmo frente al ritmo del defensor) y centro al área.
+- **Centro tenso** desde tres cuartos.
+- **Pase atrás** desde la línea de fondo al que llega al punto de penalti.
+- **Remate de un centro**: cuando el centro llega a un compañero en el área, se
+  elige entre cabezazo potente, cabezazo picado, controlar y disparar, o
+  dejarla de cabeza a otro compañero.
+
+## Animaciones y espectáculo
+
+- Regatear al portero, la salida a los pies y los penaltis ya no teletransportan
+  a nadie. El portero hace una estirada (`dive`) y el delantero lo rodea antes
+  de empujarla. En los disparos el portero se estira hacia el balón: la para o
+  llega tarde.
+- El renderizador añade efectos a los acontecimientos:
+  - estela del balón en disparos y envíos largos;
+  - estela del regate y estallido de la filigrana;
+  - impacto de las entradas;
+  - "¡PARADA!" y "¡PALO!" con temblor de cámara;
+  - aviso de falta y tarjeta amarilla que aparece sobre el jugador;
+  - onda en la red y confeti en los goles.
+
+## Mejor del partido
+
+`matchRatings(events, teams, score)` da una nota de 3 a 10 a los 22 jugadores.
+Cuenta goles, asistencias, disparos, paradas, entradas, intercepciones,
+regates, pases, decisiones acertadas, faltas, tarjetas, el resultado y las
+porterías a cero. La nota más alta es el mejor del partido, de cualquier
+equipo, y aparece en el resumen con su carta.
