@@ -29,6 +29,8 @@ export interface MatchPlayerSetup {
   instruction: PlayerInstruction;
   /** Referencia de presentación (versión de carta) — el motor no la usa. */
   versionId?: string;
+  /** Icono/leyenda: desbloquea antes las acciones especiales en las decisiones. */
+  icon?: boolean;
 }
 
 export interface MatchTeamSetup {
@@ -96,6 +98,8 @@ export interface BallFlight {
   outcome: 'complete' | 'intercepted' | 'loose' | 'goal' | 'saved' | 'miss' | 'post';
   targetId: string | null;
   kickerId: string;
+  /** Decisión del usuario que originó el golpeo (para evaluar su resultado). */
+  decisionId?: number;
 }
 
 export interface BallState {
@@ -121,6 +125,9 @@ export interface TeamStats {
   yellowCards: number;
   dribblesWon: number;
   possessionTicks: number;
+  /** Decisiones manuales tomadas y acertadas. */
+  decisions: number;
+  decisionsWon: number;
 }
 
 export type MatchEventType =
@@ -140,7 +147,8 @@ export type MatchEventType =
   | 'run'
   | 'foul'
   | 'card'
-  | 'highlight';
+  | 'highlight'
+  | 'decision';
 
 /** Jugadas que merecen la atención del espectador (aviso en la retransmisión). */
 export type HighlightKind =
@@ -179,6 +187,108 @@ export interface MatchEvent {
   important: boolean;
   /** Presente si la jugada merece un aviso en pantalla. */
   highlight?: MatchHighlight;
+  /** Presente en el evento que resuelve una decisión del usuario. */
+  decision?: DecisionResult;
+}
+
+// ───────────────────────────── Decisiones del usuario ─────────────────────────────
+
+/** Frecuencia de intervenciones manuales. */
+export type DecisionFrequency = 'off' | 'low' | 'medium' | 'high';
+
+export type DecisionKind =
+  // Con el balón
+  | 'dribble'
+  | 'skill'
+  | 'carry'
+  | 'shield'
+  | 'pass'
+  | 'onetwo'
+  | 'through'
+  | 'longball'
+  | 'switch'
+  | 'cross'
+  | 'shoot'
+  | 'finesse'
+  | 'power'
+  | 'longshot'
+  | 'chip'
+  | 'roundkeeper'
+  // Balón parado
+  | 'pen-left'
+  | 'pen-right'
+  | 'pen-center'
+  | 'panenka'
+  | 'fk-shot'
+  | 'fk-power'
+  | 'fk-cross'
+  | 'fk-short'
+  | 'corner-near'
+  | 'corner-far'
+  | 'corner-edge'
+  // Defensa
+  | 'tackle'
+  | 'slide'
+  | 'jockey'
+  | 'tacticalfoul'
+  | 'gk-rush'
+  | 'gk-stay';
+
+export type DecisionFamily = 'move' | 'pass' | 'shot' | 'defense';
+export type DecisionContext = 'attack' | 'oneonone' | 'setpiece' | 'defense' | 'keeper';
+/** Indicador cualitativo de probabilidad. */
+export type Likelihood = 'very-high' | 'high' | 'medium' | 'low' | 'very-low';
+export type Level = 'low' | 'medium' | 'high';
+
+export interface DecisionOption {
+  id: string;
+  kind: DecisionKind;
+  family: DecisionFamily;
+  label: string;
+  /** Comparativa de atributos que determina el resultado (p. ej. "REG 91 vs DEF 84"). */
+  detail: string;
+  /** Probabilidad de éxito (o de gol, según `measure`). */
+  chance: number;
+  measure: 'success' | 'goal';
+  likelihood: Likelihood;
+  /** Coste de fallar (pérdida en zona peligrosa, falta, tarjeta…). */
+  risk: Level;
+  /** Lo que se gana si sale bien. */
+  reward: Level;
+  /** Acción especial desbloqueada por la carta (atributo o Icono). */
+  trait?: string;
+  targetId?: string;
+  /** Punto del campo al que apunta la acción (para dibujarla). */
+  point?: { x: number; y: number };
+}
+
+export interface DecisionPrompt {
+  id: number;
+  side: TeamSide;
+  context: DecisionContext;
+  /** Jugador que decide (poseedor, defensor o portero). */
+  playerId: string;
+  playerName: string;
+  /** Rival implicado (defensa). */
+  rivalId?: string;
+  title: string;
+  situation: string;
+  options: DecisionOption[];
+  createdAt: number;
+  expiresAt: number;
+  /** Nº de decisión encadenada en la misma jugada (0 = primera). */
+  chain: number;
+}
+
+export type DecisionGrade = 'great' | 'good' | 'partial' | 'fail';
+
+export interface DecisionResult {
+  promptId: number;
+  kind: DecisionKind;
+  label: string;
+  grade: DecisionGrade;
+  title: string;
+  detail: string;
 }
 
 export interface MatchSnapshot {
@@ -191,4 +301,6 @@ export interface MatchSnapshot {
   players: PlayerState[];
   possession: TeamSide | null;
   stats: Record<TeamSide, TeamStats>;
+  /** Decisión pendiente del usuario (el partido se ralentiza mientras tanto). */
+  decision: DecisionPrompt | null;
 }

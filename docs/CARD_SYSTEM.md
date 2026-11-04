@@ -81,3 +81,18 @@ como provisional en su `title`). No existen imágenes estáticas por carta.
 Sin rarezas, los sobres usan **bandas de valoración** (≤82, 83–85, 86–88, 89–91, 92+), garantías
 de valoración mínima y filtros por época (p. ej. *Sobre Clásicos*: ediciones ≤ 2010 de 90+).
 El valor de mercado depende de la valoración. Revelado especial ("walkout") para 88+ e Iconos.
+
+## Marco y silueta por edición
+
+Además del foil, los colores y el brillo, cada año tiene un **marco propio**:
+- `frameStyle`: `bevel`, `double` (doble filete), `filigree` (grabado),
+  `rivets` (remaches), `tape` (franjas), `gems` (gemas en esquinas y centros),
+  `neon` (resplandor animado).
+- `shape`: `rounded`, `sharp`, `arched` (esquinas amplias), `notched` (esquinas
+  cortadas).
+- Cada carta proyecta un halo del color de su edición. Las ediciones con
+  movimiento y las cartas de 88+ tienen una luz que recorre el marco.
+
+Composición: la bandera ocupa la mitad superior sin obstáculos. El escudo va
+más abajo, en la frontera con el panel inferior. Debajo van el nombre (grande),
+la versión centrada y los seis atributos en tamaño grande, sin hueco intermedio.

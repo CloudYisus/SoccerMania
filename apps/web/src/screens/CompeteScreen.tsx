@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { PLAY_STYLES } from '@fu/domain';
 import { PlayerCard } from '../components/card/PlayerCard';
 import { Icon } from '../components/ui/icons';
 import { Button, Coins, Meter, SectionHeader, Segmented } from '../components/ui/ui';
@@ -32,6 +33,9 @@ function TeamPanel({ team, cta, onPlay, disabled, extra }: { team: TeamBuild; ct
         <div>
           <h3 className="t-display">{team.name}</h3>
           <span className="muted small">{team.description}</span>
+          <span className="team-panel__style t-ui" title={PLAY_STYLES[team.tactics.style ?? 'balanced'].description}>
+            Estilo: {PLAY_STYLES[team.tactics.style ?? 'balanced'].label}
+          </span>
         </div>
       </header>
       <div className="team-panel__stats">

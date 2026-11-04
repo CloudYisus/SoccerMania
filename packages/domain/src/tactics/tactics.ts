@@ -1,7 +1,21 @@
 export type Mentality = 'defensive' | 'balanced' | 'attacking';
 
+/** Estilo de juego: preferencias tácticas de un equipo (sobre todo de la IA rival). */
+export type PlayStyle = 'balanced' | 'possession' | 'counter' | 'direct' | 'wings' | 'highpress';
+
+export const PLAY_STYLES: Record<PlayStyle, { label: string; description: string }> = {
+  balanced: { label: 'Equilibrado', description: 'Sin preferencias marcadas: elige según la jugada.' },
+  possession: { label: 'Posesión', description: 'Pases cortos, paciencia y pocas pérdidas. Rara vez dispara de lejos.' },
+  counter: { label: 'Contraataque', description: 'Bloque bajo y salidas rápidas al espacio tras robar.' },
+  direct: { label: 'Juego directo', description: 'Balones largos, centros y disparos desde cualquier distancia.' },
+  wings: { label: 'Juego por bandas', description: 'Amplitud máxima, regates en banda y muchos centros al área.' },
+  highpress: { label: 'Presión alta', description: 'Línea adelantada y presión asfixiante. Comete más faltas.' },
+};
+
 export interface TeamTactics {
   mentality: Mentality;
+  /** Estilo de juego (opcional; por defecto equilibrado). */
+  style?: PlayStyle;
   /** Intensidad de presión 0–100. */
   pressing: number;
   /** Amplitud del bloque en posesión 0–100. */

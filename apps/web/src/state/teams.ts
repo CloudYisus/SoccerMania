@@ -10,6 +10,7 @@ import {
   type FormationId,
   type MatchTeamSetup,
   type PlayerInstruction,
+  type PlayStyle,
   type TeamTactics,
   DEFAULT_TACTICS,
 } from '@fu/domain';
@@ -103,10 +104,14 @@ export function buildOpponent(id: string): TeamBuild {
       (!def.pool.minYear || v.year >= def.pool.minYear) &&
       (!def.pool.maxYear || v.year <= def.pool.maxYear),
   );
+  const style = def.style ?? 'balanced';
   const tactics: TeamTactics = {
     ...DEFAULT_TACTICS,
     mentality: def.difficulty >= 4 ? 'attacking' : def.difficulty <= 1 ? 'defensive' : 'balanced',
-    pressing: 40 + def.difficulty * 8,
+    pressing: style === 'highpress' ? 80 : style === 'counter' ? 32 : 40 + def.difficulty * 8,
+    width: style === 'wings' ? 85 : style === 'possession' ? 62 : DEFAULT_TACTICS.width,
+    tempo: style === 'possession' ? 38 : style === 'direct' || style === 'counter' ? 74 : DEFAULT_TACTICS.tempo,
+    style,
   };
   return assemble({ ...def, tactics }, pool);
 }
@@ -123,6 +128,8 @@ const DIVISION_CLUBS = [
   ['Olímpico del Norte', 'OLÍMPICO', '#4c1d95', '#e9d5ff'],
 ] as const;
 
+const DIVISION_STYLES: PlayStyle[] = ['balanced', 'possession', 'counter', 'direct', 'wings', 'highpress'];
+
 /** Rival de Divisiones: su nivel depende de la división (10 = más baja). */
 export function divisionOpponent(level: number, gameIndex: number): TeamBuild {
   const rng = createRng(hashString(`div-${level}-${gameIndex}`));
@@ -135,6 +142,7 @@ export function divisionOpponent(level: number, gameIndex: number): TeamBuild {
   }
   const [name, shortName, primary, secondary] = DIVISION_CLUBS[gameIndex % DIVISION_CLUBS.length];
   const formationId = FORMATION_IDS[rng.int(0, FORMATION_IDS.length - 1)];
+  const style = DIVISION_STYLES[rng.int(0, DIVISION_STYLES.length - 1)];
   // Mezcla determinista del pool para variar los onces.
   const shuffled = [...pool].sort((a, b) => hashString(a.id + gameIndex + level) - hashString(b.id + gameIndex + level));
   return assemble(
@@ -146,7 +154,13 @@ export function divisionOpponent(level: number, gameIndex: number): TeamBuild {
       formationId,
       difficulty: Math.max(1, Math.min(5, Math.round((11 - level) / 2))),
       description: `Rival de División ${level}`,
-      tactics: { ...DEFAULT_TACTICS, pressing: 35 + (10 - level) * 4 },
+      tactics: {
+        ...DEFAULT_TACTICS,
+        pressing: style === 'highpress' ? 78 : 35 + (10 - level) * 4,
+        width: style === 'wings' ? 85 : DEFAULT_TACTICS.width,
+        tempo: style === 'possession' ? 38 : style === 'direct' || style === 'counter' ? 74 : DEFAULT_TACTICS.tempo,
+        style,
+      },
     },
     shuffled.slice(0, 40),
   );
@@ -177,6 +191,7 @@ export function aiToMatchSetup(t: TeamBuild): MatchTeamSetup {
         stats: r.version.stats,
         chemistry: t.slotChemistry[i],
         versionId: id,
+        icon: r.player.icon,
       };
     }),
   });
@@ -202,6 +217,7 @@ export function userToMatchSetup(view: SquadView, name: string, tactics: TeamTac
         chemistry: view.chemistry.players[i]?.value ?? 0,
         instruction: instructions[r.card.id] ?? 'none',
         versionId: r.version.id,
+        icon: r.player.icon,
       };
     }),
   });

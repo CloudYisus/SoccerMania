@@ -36,6 +36,10 @@ export type FoilPattern =
   | 'hexgrid';
 
 export type FoilMotion = 'none' | 'sweep' | 'holo' | 'pulse';
+/** Ornamento del marco. */
+export type FrameStyle = 'bevel' | 'double' | 'filigree' | 'rivets' | 'tape' | 'gems' | 'neon';
+/** Silueta de la carta. */
+export type CardShape = 'rounded' | 'sharp' | 'arched' | 'notched';
 
 export interface EditionTheme {
   year: number;
@@ -56,6 +60,8 @@ export interface EditionTheme {
   /** Color de las líneas del foil. */
   foilInk: string;
   motion: FoilMotion;
+  frameStyle: FrameStyle;
+  shape: CardShape;
 }
 
 const metal = (a: string, b: string, c: string, d: string) =>
@@ -74,7 +80,40 @@ const T = (
   foil: FoilPattern,
   foilInk: string,
   motion: FoilMotion = 'none',
-): EditionTheme => ({ year, name, frame, base, tint, rating, accent, glow, foil, foilInk, motion });
+): EditionTheme => ({ year, name, frame, base, tint, rating, accent, glow, foil, foilInk, motion, ...(FRAMES[year] ?? generatedFrame(year)) });
+
+/** Marco y silueta de cada año: lo que hace reconocible la edición a primera vista. */
+const FRAMES: Record<number, { frameStyle: FrameStyle; shape: CardShape }> = {
+  1954: { frameStyle: 'filigree', shape: 'rounded' },
+  1962: { frameStyle: 'double', shape: 'arched' },
+  1966: { frameStyle: 'rivets', shape: 'sharp' },
+  1970: { frameStyle: 'gems', shape: 'arched' },
+  1972: { frameStyle: 'tape', shape: 'rounded' },
+  1974: { frameStyle: 'bevel', shape: 'notched' },
+  1986: { frameStyle: 'filigree', shape: 'notched' },
+  1987: { frameStyle: 'double', shape: 'rounded' },
+  1994: { frameStyle: 'neon', shape: 'sharp' },
+  1996: { frameStyle: 'neon', shape: 'rounded' },
+  1998: { frameStyle: 'tape', shape: 'notched' },
+  2002: { frameStyle: 'gems', shape: 'rounded' },
+  2003: { frameStyle: 'bevel', shape: 'arched' },
+  2004: { frameStyle: 'rivets', shape: 'rounded' },
+  2005: { frameStyle: 'tape', shape: 'sharp' },
+  2006: { frameStyle: 'gems', shape: 'notched' },
+  2010: { frameStyle: 'rivets', shape: 'notched' },
+  2014: { frameStyle: 'filigree', shape: 'arched' },
+  2018: { frameStyle: 'bevel', shape: 'sharp' },
+  2022: { frameStyle: 'filigree', shape: 'rounded' },
+  2023: { frameStyle: 'neon', shape: 'notched' },
+  2024: { frameStyle: 'double', shape: 'sharp' },
+  2025: { frameStyle: 'neon', shape: 'arched' },
+  2026: { frameStyle: 'gems', shape: 'notched' },
+};
+const FRAME_STYLES: FrameStyle[] = ['bevel', 'double', 'filigree', 'rivets', 'tape', 'gems', 'neon'];
+const SHAPES: CardShape[] = ['rounded', 'sharp', 'arched', 'notched'];
+function generatedFrame(year: number) {
+  return { frameStyle: FRAME_STYLES[year % FRAME_STYLES.length], shape: SHAPES[Math.floor(year / 7) % SHAPES.length] };
+}
 
 export const EDITIONS: Record<number, EditionTheme> = Object.fromEntries(
   [

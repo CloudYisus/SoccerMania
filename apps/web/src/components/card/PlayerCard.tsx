@@ -1,5 +1,5 @@
 import { memo, useRef, type CSSProperties, type MouseEvent } from 'react';
-import { editionTag, POSITION_LABELS, statEntries, type PlayerCard as Card } from '@fu/domain';
+import { editionTag, POSITION_LABELS, statEntries, WALKOUT_RATING, type PlayerCard as Card } from '@fu/domain';
 import { version as resolveVersion } from '../../data/catalog';
 import { FlagArt } from './FlagArt';
 import { ClubCrest } from './ClubCrest';
@@ -28,10 +28,12 @@ export interface PlayerCardProps {
 
 function nameSize(name: string) {
   const n = name.length;
-  if (n <= 6) return '2.75em';
-  if (n <= 9) return '2.4em';
-  if (n <= 12) return '1.95em';
-  return '1.6em';
+  if (n <= 6) return '3.6em';
+  if (n <= 8) return '3.25em';
+  if (n <= 10) return '2.85em';
+  if (n <= 12) return '2.45em';
+  if (n <= 14) return '2.15em';
+  return '1.9em';
 }
 
 /** "Inter" + "2025-26" → "Inter 25/26"; las versiones con año propio se respetan ("México '86"). */
@@ -105,6 +107,9 @@ export const PlayerCard = memo(function PlayerCard({
       className={`fu-card ${className ?? ''}`}
       data-year={version.year}
       data-motion={edition.motion}
+      data-frame={edition.frameStyle}
+      data-shape={edition.shape}
+      data-elite={version.rating >= WALKOUT_RATING}
       data-icon={player.icon}
       data-size={size}
       data-interactive={interactive || !!onClick}
@@ -127,6 +132,7 @@ export const PlayerCard = memo(function PlayerCard({
       }}
     >
       <div className="fu-card__frame">
+        <div className="fu-card__ring" />
         <div className="fu-card__body">
           <div className="fu-card__flag">
             <FlagArt code={nation.code} />
@@ -134,6 +140,7 @@ export const PlayerCard = memo(function PlayerCard({
           <div className="fu-card__tint" />
           <div className="fu-card__foil" data-foil={edition.foil} />
           <div className="fu-card__shade" />
+          <div className="fu-card__panel" />
           <div className="fu-card__crest-hero">
             <ClubCrest club={club} />
           </div>
@@ -178,6 +185,7 @@ export const PlayerCard = memo(function PlayerCard({
           <div className="fu-card__sweep" />
           <div className="fu-card__shine" />
         </div>
+        <div className="fu-card__gems" />
       </div>
     </div>
   );

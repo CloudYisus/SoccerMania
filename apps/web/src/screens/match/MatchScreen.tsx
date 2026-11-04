@@ -13,6 +13,12 @@ import {
   type Mentality,
   type PlayerInstruction,
   type HighlightKind,
+  type DecisionFrequency,
+  type DecisionPrompt,
+  type DecisionOption,
+  type Likelihood,
+  type Level,
+  PLAY_STYLES,
 } from '@fu/domain';
 import { createMatchView, type MatchView } from '@fu/match-renderer';
 import { Icon } from '../../components/ui/icons';
@@ -25,6 +31,26 @@ import { useUi } from '../../state/uiStore';
 import './match.css';
 
 const SPEEDS = [1, 2, 4, 8] as const;
+/** Velocidad del motor (segundos de motor por segundo real) mientras se decide: cámara muy lenta, sin pausa. */
+const DECISION_RATE = 0.1;
+const FREQ_KEY = 'fu-decision-frequency';
+
+function loadFrequency(): DecisionFrequency {
+  try {
+    const v = localStorage.getItem(FREQ_KEY);
+    if (v === 'off' || v === 'low' || v === 'medium' || v === 'high') return v;
+  } catch {
+    /* almacenamiento no disponible */
+  }
+  return 'medium';
+}
+function saveFrequency(v: DecisionFrequency) {
+  try {
+    localStorage.setItem(FREQ_KEY, v);
+  } catch {
+    /* almacenamiento no disponible */
+  }
+}
 
 function lum(hex: string) {
   const n = parseInt(hex.slice(1), 16);
@@ -58,6 +84,7 @@ export default function MatchScreen() {
     const home = userToMatchSetup(view, g.squad.name, g.squad.tactics, g.squad.instructions);
     const away = aiToMatchSetup(req.opponent);
     const engine = new MatchEngine(home, away, (Date.now() ^ 0x5f3759df) >>> 0);
+    engine.setDecisionMode('home', loadFrequency());
     return { home, away, engine, kits: resolveKits(home, away) };
   }, [req]);
 
@@ -75,6 +102,11 @@ export default function MatchScreen() {
   const [banners, setBanners] = useState<MatchEvent[]>([]);
   const [slowMo, setSlowMo] = useState(true);
   const [slowActive, setSlowActive] = useState(false);
+  const [decision, setDecision] = useState<DecisionPrompt | null>(null);
+  const [focusOpt, setFocusOpt] = useState<string | null>(null);
+  const [frequency, setFrequency] = useState<DecisionFrequency>(() => engine.decisionFrequency);
+  const [result, setResult] = useState<MatchEvent | null>(null);
+  const decisionRef = useRef<DecisionPrompt | null>(null);
   const control = useRef({ speed, paused, slowMo, holdUntil: 0, slowUntil: 0 });
   control.current.speed = speed;
   control.current.paused = paused;
@@ -95,6 +127,10 @@ export default function MatchScreen() {
     if (!live) return;
     const now = performance.now();
     for (const e of evs) {
+      if (e.decision) {
+        setResult(e);
+        continue;
+      }
       if (!e.highlight) continue;
       if (e.playerId) viewRef.current?.spotlight(e.playerId);
       if (e.highlight.kind === 'goal') {
@@ -139,11 +175,18 @@ export default function MatchScreen() {
       const c = control.current;
       const slow = now < c.slowUntil;
       const hold = now < c.holdUntil;
-      const speedNow = slow ? Math.min(c.speed, 1) * 0.6 : c.speed;
+      const pending = engine.decision;
+      const speedNow = pending ? DECISION_RATE : slow ? Math.min(c.speed, 1) * 0.6 : c.speed;
       if (!c.paused && !hold && !engine.finished) engine.step(dt * speedNow);
       const s = engine.getSnapshot();
       view.update(s);
       ingestRef.current(engine.drainEvents(), true);
+      if (s.decision !== decisionRef.current) {
+        decisionRef.current = s.decision;
+        setDecision(s.decision);
+        view.setDecision(s.decision, null);
+        if (!s.decision) setFocusOpt(null);
+      }
       if (now - lastUi > 110 || engine.finished) {
         lastUi = now;
         setSnap(s);
@@ -160,6 +203,12 @@ export default function MatchScreen() {
   }, [engine, kits]);
 
   useEffect(() => viewRef.current?.setSelected(selected), [selected]);
+  useEffect(() => viewRef.current?.setDecision(decision, focusOpt), [decision, focusOpt]);
+  useEffect(() => {
+    if (!result) return;
+    const t = setTimeout(() => setResult(null), 2800);
+    return () => clearTimeout(t);
+  }, [result]);
   useEffect(() => {
     if (!goalShow) return;
     const t = setTimeout(() => setGoalShow(null), 3600);
@@ -173,11 +222,57 @@ export default function MatchScreen() {
 
   ingestRef.current = ingest;
 
+  const choose = (opt: DecisionOption) => {
+    const d = decisionRef.current;
+    if (!d) return;
+    if (engine.choose(d.id, opt.id)) {
+      // La acción elegida se ve a cámara lenta.
+      if (control.current.slowMo) control.current.slowUntil = performance.now() + 2600;
+    }
+    decisionRef.current = null;
+    setDecision(null);
+    setFocusOpt(null);
+    viewRef.current?.setDecision(null, null);
+  };
+  const skipDecision = () => {
+    engine.skipDecision();
+    decisionRef.current = null;
+    setDecision(null);
+    setFocusOpt(null);
+    viewRef.current?.setDecision(null, null);
+  };
+  const changeFrequency = (f: DecisionFrequency) => {
+    setFrequency(f);
+    saveFrequency(f);
+    engine.setDecisionMode('home', f);
+  };
+
+  // Atajos: 1–4 eligen opción, Esc deja decidir al equipo.
+  useEffect(() => {
+    if (!decision) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+      const n = Number(e.key);
+      if (n >= 1 && n <= decision.options.length) {
+        e.preventDefault();
+        choose(decision.options[n - 1]);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        skipDecision();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [decision]);
+
   const simulateRest = () => {
+    skipDecision();
     engine.simulateToEnd();
     ingest(engine.drainEvents(), false);
     setBanners([]);
     setGoalShow(null);
+    setResult(null);
     setSnap(engine.getSnapshot());
   };
 
@@ -245,7 +340,9 @@ export default function MatchScreen() {
     ['Faltas', snap.stats.home.fouls, snap.stats.away.fouls],
     ['Amarillas', snap.stats.home.yellowCards, snap.stats.away.yellowCards],
     ['Intercepciones', snap.stats.home.interceptions, snap.stats.away.interceptions],
+    ...(snap.stats.home.decisions > 0 ? [['Decisiones acertadas', `${snap.stats.home.decisionsWon}/${snap.stats.home.decisions}`, '—'] as [string, string, string]] : []),
   ];
+  const awayStyle = PLAY_STYLES[away.tactics.style ?? 'balanced'];
 
   return (
     <div className="match" role="dialog" aria-modal="true" aria-label={`Partido contra ${away.name}`}>
@@ -268,8 +365,8 @@ export default function MatchScreen() {
           </div>
         </div>
         <div className="scoreboard__team scoreboard__team--away">
-          <small className="t-ui muted">
-            {away.rating} · Q{away.chemistry}
+          <small className="t-ui muted" title={awayStyle.description}>
+            {away.rating} · Q{away.chemistry} · {awayStyle.label}
           </small>
           <span className="t-display">{away.shortName}</span>
           <span className="scoreboard__kit" style={{ background: kits.away.primary }} />
@@ -284,7 +381,19 @@ export default function MatchScreen() {
             {banners[0]?.highlight && (
               <HighlightBanner key={banners[0].id} event={banners[0]} kit={banners[0].side === 'away' ? kits.away.primary : kits.home.primary} />
             )}
-            {slowActive && !goalShow && <span className="slowmo-badge t-ui">Cámara lenta</span>}
+            {slowActive && !goalShow && !decision && <span className="slowmo-badge t-ui">Cámara lenta</span>}
+            {result?.decision && !goalShow && <DecisionResultToast key={result.id} event={result} />}
+            {decision && !goalShow && !finished && (
+              <DecisionPanel
+                decision={decision}
+                time={snap.time}
+                focus={focusOpt}
+                onFocus={setFocusOpt}
+                onChoose={choose}
+                onSkip={skipDecision}
+                paused={paused}
+              />
+            )}
             {goalShow && (
               <GoalCard
                 key={goalShow.id}
@@ -329,6 +438,26 @@ export default function MatchScreen() {
 
         <aside className="match__side">
           <section className="match-panel">
+            <h3 className="t-ui">Intervenciones</h3>
+            <Segmented<DecisionFrequency>
+              label="Frecuencia de decisiones"
+              value={frequency}
+              onChange={changeFrequency}
+              options={[
+                { id: 'off', label: 'No' },
+                { id: 'low', label: 'Pocas' },
+                { id: 'medium', label: 'Normal' },
+                { id: 'high', label: 'Muchas' },
+              ]}
+            />
+            <p className="muted small">
+              {frequency === 'off'
+                ? 'Partido 100 % simulado: el equipo decide solo.'
+                : 'En las jugadas clave el partido se ralentiza y eliges qué hacer. Teclas 1–4 · Esc deja decidir al equipo.'}
+            </p>
+          </section>
+
+          <section className="match-panel">
             <h3 className="t-ui">Mentalidad</h3>
             <Segmented<Mentality>
               label="Mentalidad"
@@ -371,10 +500,14 @@ export default function MatchScreen() {
             <h3 className="t-ui">Crónica</h3>
             <ol className="feed">
               {feed.map((e) => (
-                <li key={e.id} data-type={e.type} data-side={e.side ?? 'none'} data-hl={e.highlight?.kind}>
+                <li key={e.id} data-type={e.type} data-side={e.side ?? 'none'} data-hl={e.highlight?.kind} data-grade={e.decision?.grade}>
                   <span className="feed__min t-num">{e.minute}'</span>
                   <span>
-                    {e.highlight && e.type === 'highlight' ? (
+                    {e.decision ? (
+                      <>
+                        <b>{GRADE_ICON[e.decision.grade]} {e.decision.title}</b> {e.decision.label} · {e.decision.detail}
+                      </>
+                    ) : e.highlight && e.type === 'highlight' ? (
                       <>
                         <b>{e.highlight.title}</b> {e.highlight.detail}
                       </>
@@ -508,6 +641,122 @@ function GoalCard({
           {score.home} – {score.away}
         </span>
       </div>
+    </div>
+  );
+}
+
+// ───────────────────────────── Decisiones ─────────────────────────────
+
+const CONTEXT_LABEL: Record<DecisionPrompt['context'], string> = {
+  attack: 'Tu decisión',
+  oneonone: 'Ocasión clara',
+  setpiece: 'Balón parado',
+  defense: 'Defensa',
+  keeper: 'Portero',
+};
+const LIKELIHOOD_SUCCESS: Record<Likelihood, string> = {
+  'very-high': 'Muy probable',
+  high: 'Probable',
+  medium: 'Incierto',
+  low: 'Difícil',
+  'very-low': 'Muy difícil',
+};
+const LIKELIHOOD_GOAL: Record<Likelihood, string> = {
+  'very-high': 'Gol muy probable',
+  high: 'Buena ocasión',
+  medium: 'Ocasión',
+  low: 'Gol difícil',
+  'very-low': 'Gol muy difícil',
+};
+const PIPS: Record<Likelihood, number> = { 'very-high': 5, high: 4, medium: 3, low: 2, 'very-low': 1 };
+const LEVEL_LABEL: Record<Level, string> = { low: 'bajo', medium: 'medio', high: 'alto' };
+const GRADE_ICON = { great: '★', good: '✓', partial: '≈', fail: '✗' } as const;
+
+function DecisionPanel({
+  decision,
+  time,
+  focus,
+  onFocus,
+  onChoose,
+  onSkip,
+  paused,
+}: {
+  decision: DecisionPrompt;
+  time: number;
+  focus: string | null;
+  onFocus: (id: string | null) => void;
+  onChoose: (o: DecisionOption) => void;
+  onSkip: () => void;
+  paused: boolean;
+}) {
+  const left = Math.max(0, Math.min(1, (decision.expiresAt - time) / (decision.expiresAt - decision.createdAt)));
+  return (
+    <div className="decision" data-context={decision.context} role="dialog" aria-label={`Decisión: ${decision.title}`}>
+      <header className="decision__head">
+        <span className="decision__ctx t-ui">
+          {CONTEXT_LABEL[decision.context]}
+          {decision.chain > 0 && <em> · jugada encadenada ×{decision.chain + 1}</em>}
+          {paused && <em> · en pausa</em>}
+        </span>
+        <span className="decision__title t-display">{decision.title}</span>
+        <span className="decision__sit">{decision.situation}</span>
+        <button className="decision__skip t-ui" onClick={onSkip} title="La IA decide esta jugada (Esc)">
+          Que decida el equipo
+        </button>
+      </header>
+      <div className="decision__timer" aria-hidden>
+        <span style={{ transform: `scaleX(${left})` }} data-low={left < 0.3} />
+      </div>
+      <div className="decision__options" data-n={decision.options.length}>
+        {decision.options.map((o, i) => (
+          <button
+            key={o.id}
+            className="dopt"
+            data-family={o.family}
+            data-focus={focus === o.id}
+            data-trait={!!o.trait}
+            onMouseEnter={() => onFocus(o.id)}
+            onMouseLeave={() => onFocus(null)}
+            onFocus={() => onFocus(o.id)}
+            onBlur={() => onFocus(null)}
+            onClick={() => onChoose(o)}
+          >
+            <span className="dopt__key t-num">{i + 1}</span>
+            <span className="dopt__body">
+              <span className="dopt__label">{o.label}</span>
+              <span className="dopt__detail t-ui">{o.detail}</span>
+              {o.trait && <span className="dopt__trait t-ui">★ {o.trait}</span>}
+            </span>
+            <span className="dopt__meta">
+              <span className="dopt__chance" data-lk={o.likelihood} title={`${Math.round(o.chance * 100)} %`}>
+                <span className="dopt__pips" aria-hidden>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <i key={n} data-on={n <= PIPS[o.likelihood]} />
+                  ))}
+                </span>
+                <span className="t-ui">{(o.measure === 'goal' ? LIKELIHOOD_GOAL : LIKELIHOOD_SUCCESS)[o.likelihood]}</span>
+              </span>
+              <span className="dopt__risk t-ui" data-level={o.risk}>
+                Riesgo {LEVEL_LABEL[o.risk]}
+              </span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Resultado de la decisión: éxito, a medias o fallo. */
+function DecisionResultToast({ event }: { event: MatchEvent }) {
+  const d = event.decision!;
+  return (
+    <div className="dresult" data-grade={d.grade} role="status" aria-live="polite">
+      <span className="dresult__icon">{GRADE_ICON[d.grade]}</span>
+      <span className="dresult__body">
+        <span className="dresult__title t-display">{d.title}</span>
+        <span className="dresult__detail">{d.detail}</span>
+      </span>
     </div>
   );
 }

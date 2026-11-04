@@ -84,3 +84,46 @@ de banda/puerta/esquina se resuelven entregando el balón al lanzador. Copa: pen
 ## Siguientes pasos
 Fuera de juego, expulsiones, balón aéreo real (altura), sustituciones, roles de jugador, rendimiento
 individual (notas), repeticiones a partir de la semilla, ejecución autoritativa en servidor.
+
+## Decisiones del usuario (simulación + intervenciones)
+
+El partido sigue siendo 11 contra 11 simulado, con movimiento automático. En las
+situaciones relevantes el motor abre una **decisión** (`engine.decision`) y la
+retransmisión pasa a cámara muy lenta (0,1 s de motor por segundo real), sin
+pausa completa: los compañeros siguen desmarcándose y las probabilidades se
+recalculan cada 0,25 s con las posiciones reales.
+
+- **Contextos**: con balón (`attack`), mano a mano (`oneonone`), balón parado
+  propio (`setpiece`: penalti, tiro libre directo, córner), defensa (`defense`)
+  y portero ante un mano a mano rival (`keeper`).
+- **Opciones (2–4)**: regate, filigrana (Ruleta, Bicicleta, Caño…), conducción,
+  aguantar, pase, pared, pase al hueco, cambio de orientación, balón largo,
+  centro, disparo, disparo colocado, trallazo, disparo lejano, vaselina, regatear
+  al portero; penalti (izquierda, derecha, centro, Panenka); tiro libre (rosca,
+  potente, colgarla, jugada ensayada); córner (primer palo, segundo palo, borde
+  del área); entrada, temporizar, plancha, falta táctica; salir a los pies o
+  aguantar bajo palos. Se elige la mejor de cada familia (moverse, pasar,
+  disparar) y se completan hasta 4.
+- **Indicadores**: probabilidad cualitativa (5 niveles; "de éxito" o "de gol"),
+  riesgo (coste de fallar: pérdida en zona peligrosa, falta, penalti, tarjeta) y
+  la comparativa de atributos que decide el duelo ("REG 91 vs DEF 84").
+- **Las cartas importan**: la probabilidad sale de los atributos (con química y
+  cansancio) y las acciones especiales se desbloquean con atributos altos
+  (REG 86+ filigrana, TIR 84+ colocado, PAS 88+ pase magistral, TIR 85+
+  Panenka…). Los Iconos las desbloquean 4 puntos antes.
+- **Resultados graduados**: `great`, `good`, `partial` (p. ej. "falta recibida",
+  "lo para el portero"), `fail`. Se emiten como eventos `decision` cuando el
+  balón llega a su destino, para que el aviso coincida con lo que se ve.
+- **Encadenadas**: si la acción deja al jugador (o al receptor) en situación de
+  peligro, se ofrece otra decisión inmediata (máx. 2 seguidas).
+- **Frecuencia**: `off` / `low` / `medium` / `high` (≈ 0 / 8 / 14 / 19 por
+  partido). Si el usuario no elige a tiempo, decide la IA.
+- `simulateToEnd()` desactiva las decisiones. Con las mismas elecciones, el
+  partido es determinista.
+
+## Estilos de la IA rival
+
+`TeamTactics.style`: `balanced`, `possession`, `counter`, `direct`, `wings`,
+`highpress`. Cada estilo modifica las preferencias de pase (corto, largo, al
+hueco, centro), de disparo lejano, de regate, la frecuencia de desmarques, la
+altura del bloque, la amplitud, el ritmo, la presión y las faltas.

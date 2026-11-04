@@ -38,11 +38,14 @@ export interface OpponentDefinition {
   /** Filtro de versiones elegibles para su once. */
   pool: { icons?: boolean; maxRating?: number; minRating?: number; minYear?: number; maxYear?: number; nations?: string[] };
   description: string;
+  /** Estilo de juego de la IA. */
+  style?: 'balanced' | 'possession' | 'counter' | 'direct' | 'wings' | 'highpress';
 }
 
 export const OPPONENTS: OpponentDefinition[] = [
   {
     id: 'ai-norte',
+    style: 'counter',
     name: 'Ciudad Norte FC',
     shortName: 'NORTE',
     colors: { primary: '#2d6a4f', secondary: '#f1faee' },
@@ -53,6 +56,7 @@ export const OPPONENTS: OpponentDefinition[] = [
   },
   {
     id: 'ai-puerto',
+    style: 'direct',
     name: 'Atlético Puerto Real',
     shortName: 'PUERTO',
     colors: { primary: '#1d3557', secondary: '#e9c46a' },
@@ -63,6 +67,7 @@ export const OPPONENTS: OpponentDefinition[] = [
   },
   {
     id: 'ai-modernos',
+    style: 'highpress',
     name: 'Galácticos Modernos',
     shortName: 'GALÁCTICOS',
     colors: { primary: '#f8f9fa', secondary: '#7b2cbf' },
@@ -73,6 +78,7 @@ export const OPPONENTS: OpponentDefinition[] = [
   },
   {
     id: 'ai-sudamerica',
+    style: 'wings',
     name: 'Leyendas del Sur XI',
     shortName: 'SUR XI',
     colors: { primary: '#f4d35e', secondary: '#0d3b66' },
@@ -83,6 +89,7 @@ export const OPPONENTS: OpponentDefinition[] = [
   },
   {
     id: 'ai-europa',
+    style: 'possession',
     name: 'Clásicos de Europa XI',
     shortName: 'EUROPA XI',
     colors: { primary: '#0b132b', secondary: '#c9a227' },

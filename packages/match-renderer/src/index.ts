@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { PITCH, type MatchSnapshot, type TeamSide } from '@fu/domain';
+import { PITCH, type DecisionFamily, type DecisionPrompt, type MatchSnapshot, type TeamSide } from '@fu/domain';
 
 /**
  * MATCH RENDERER (Phaser 3)
@@ -25,6 +25,8 @@ export interface MatchView {
   setSelected(playerId: string | null): void;
   /** Resalta a un jugador (jugada destacada): anillos que se expanden. */
   spotlight(playerId: string): void;
+  /** Dibuja las opciones de una decisión pendiente (null para ocultarlas). */
+  setDecision(decision: DecisionPrompt | null, focusOptionId?: string | null): void;
   destroy(): void;
 }
 
@@ -36,6 +38,13 @@ const px = (x: number) => MARGIN + x * SCALE;
 const py = (y: number) => MARGIN + y * SCALE;
 
 const hex = (c: string) => Phaser.Display.Color.HexStringToColor(c).color;
+
+const FAMILY_COLOR: Record<DecisionFamily, number> = {
+  move: 0xf3d99b,
+  pass: 0x6cc4ff,
+  shot: 0xff6b6b,
+  defense: 0x39d98a,
+};
 
 /** Contraste de texto sobre el color de la camiseta. */
 function textOn(color: string) {
@@ -65,6 +74,11 @@ class MatchScene extends Phaser.Scene {
   private selected: string | null = null;
   private lastPhase: string | null = null;
   private goalFlash!: Phaser.GameObjects.Rectangle;
+  private decision: DecisionPrompt | null = null;
+  private focus: string | null = null;
+  private decoG!: Phaser.GameObjects.Graphics;
+  private decoTags: { id: string; bg: Phaser.GameObjects.Arc; text: Phaser.GameObjects.Text }[] = [];
+  private pulse = 0;
 
   constructor(private opts: MatchViewOptions) {
     super('match');
@@ -75,6 +89,31 @@ class MatchScene extends Phaser.Scene {
   }
   setSelected(id: string | null) {
     this.selected = id;
+  }
+  setDecision(d: DecisionPrompt | null, focus: string | null) {
+    this.focus = focus;
+    // Antes de create() la escena aún no puede crear objetos: se aplica al arrancar.
+    if (!this.decoG) {
+      this.decision = d;
+      return;
+    }
+    if (d?.id !== this.decision?.id) {
+      for (const t of this.decoTags) {
+        t.bg.destroy();
+        t.text.destroy();
+      }
+      this.decoTags = [];
+      d?.options.forEach((o, i) => {
+        const color = FAMILY_COLOR[o.family];
+        const bg = this.add.circle(0, 0, 11, 0x0b0d11, 0.92).setStrokeStyle(2.5, color, 1).setDepth(41);
+        const text = this.add
+          .text(0, 0, String(i + 1), { fontFamily: 'Barlow Condensed, Arial Narrow, sans-serif', fontSize: '14px', fontStyle: '800', color: '#ffffff' })
+          .setOrigin(0.5)
+          .setDepth(42);
+        this.decoTags.push({ id: o.id, bg, text });
+      });
+    }
+    this.decision = d;
   }
   spotlight(id: string) {
     const s = this.sprites.get(id);
@@ -100,6 +139,78 @@ class MatchScene extends Phaser.Scene {
     this.ball = this.add.circle(this.bx, this.by, 4.6, 0xffffff).setStrokeStyle(1.2, 0x111111).setDepth(30);
     this.ownerMarker = this.add.triangle(0, 0, 0, 0, 10, 0, 5, 7, 0xf3d99b).setDepth(31).setVisible(false);
     this.goalFlash = this.add.rectangle(W / 2, H / 2, W, H, 0xf3d99b, 0).setDepth(50);
+    this.decoG = this.add.graphics().setDepth(40);
+    if (this.decision) {
+      const d = this.decision;
+      this.decision = null;
+      this.setDecision(d, this.focus);
+    }
+  }
+
+  /** Línea discontinua (Phaser no las trae de serie). */
+  private dashed(g: Phaser.GameObjects.Graphics, x0: number, y0: number, x1: number, y1: number, offset: number) {
+    const len = Math.hypot(x1 - x0, y1 - y0);
+    if (len < 1) return;
+    const ux = (x1 - x0) / len;
+    const uy = (y1 - y0) / len;
+    const dash = 9;
+    const gap = 6;
+    for (let t = -((offset % (dash + gap)) + dash + gap); t < len; t += dash + gap) {
+      const a = Math.max(0, t);
+      const b = Math.min(len, t + dash);
+      if (b <= a) continue;
+      g.lineBetween(x0 + ux * a, y0 + uy * a, x0 + ux * b, y0 + uy * b);
+    }
+  }
+
+  /** Opciones de la decisión pendiente: líneas desde el jugador a cada destino. */
+  private drawDecision(delta: number) {
+    const g = this.decoG;
+    g.clear();
+    const d = this.decision;
+    if (!d) return;
+    this.pulse += delta;
+    const actor = this.sprites.get(d.playerId);
+    if (!actor) return;
+    const pr = 16 + Math.sin(this.pulse / 160) * 3;
+    g.lineStyle(2.5, 0xf3d99b, 0.9).strokeCircle(actor.x, actor.y, pr);
+    d.options.forEach((o, i) => {
+      const tag = this.decoTags[i];
+      if (!tag) return;
+      const color = FAMILY_COLOR[o.family];
+      const target = o.targetId ? this.sprites.get(o.targetId) : undefined;
+      let tx: number;
+      let ty: number;
+      const usePoint = o.point && (!target || o.kind === 'through' || o.kind === 'carry' || o.kind === 'corner-edge');
+      if (usePoint) {
+        tx = px(o.point!.x);
+        ty = py(o.point!.y);
+      } else if (target) {
+        tx = target.x;
+        ty = target.y;
+      } else {
+        tx = actor.x;
+        ty = actor.y;
+      }
+      const focused = this.focus === o.id;
+      const dim = this.focus !== null && !focused;
+      const self = Math.hypot(tx - actor.x, ty - actor.y) < 6;
+      if (self) {
+        // Acción sin destino (aguantar): etiqueta encima del jugador.
+        tx = actor.x + (i - 1.5) * 26;
+        ty = actor.y - 34;
+      } else {
+        g.lineStyle(focused ? 3.5 : 2.2, color, dim ? 0.25 : 0.9);
+        this.dashed(g, actor.x, actor.y, tx, ty, this.pulse / 25);
+        if (o.family === 'pass' && target && usePoint) {
+          // Pase al espacio: también se marca al receptor.
+          g.lineStyle(1.5, color, dim ? 0.2 : 0.6).strokeCircle(target.x, target.y, 14);
+        }
+      }
+      if (focused) g.fillStyle(color, 0.22).fillCircle(tx, ty, 20);
+      tag.bg.setPosition(tx, ty).setAlpha(dim ? 0.4 : 1).setScale(focused ? 1.25 : 1);
+      tag.text.setPosition(tx, ty).setAlpha(dim ? 0.4 : 1).setScale(focused ? 1.25 : 1);
+    });
   }
 
   private drawPitch() {
@@ -199,7 +310,8 @@ class MatchScene extends Phaser.Scene {
       s.container.setPosition(s.x, s.y);
       const isSel = p.id === this.selected;
       s.ring.setVisible(isSel);
-      s.label.setVisible(isSel || p.id === ownerId);
+      const involved = !!this.decision && (this.decision.playerId === p.id || this.decision.options.some((o) => o.targetId === p.id));
+      s.label.setVisible(isSel || p.id === ownerId || involved);
       s.container.setDepth(isSel ? 20 : p.id === ownerId ? 15 : 10);
       s.container.setAlpha(p.stunned > 0 ? 0.65 : 1);
       if (s.stamina.visible) {
@@ -226,8 +338,9 @@ class MatchScene extends Phaser.Scene {
     this.ball.setPosition(this.bx, this.by - lift).setScale(1 + lift / 40);
 
     const owner = ownerId ? this.sprites.get(ownerId) : null;
-    this.ownerMarker.setVisible(!!owner);
+    this.ownerMarker.setVisible(!!owner && !this.decision);
     if (owner) this.ownerMarker.setPosition(owner.x - 5, owner.y - 26);
+    this.drawDecision(delta);
   }
 }
 
@@ -250,6 +363,7 @@ export function createMatchView(opts: MatchViewOptions): MatchView {
     update: (s) => scene.setSnapshot(s),
     setSelected: (id) => scene.setSelected(id),
     spotlight: (id) => scene.spotlight(id),
+    setDecision: (d, focus) => scene.setDecision(d, focus ?? null),
     destroy: () => game.destroy(true),
   };
 }
