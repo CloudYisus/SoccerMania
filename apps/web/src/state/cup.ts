@@ -1,7 +1,8 @@
 import { createRng, hashString } from '@fu/shared';
 import { MatchEngine, penaltyShootout, type MatchEvent, type MatchTeamSetup } from '@fu/domain';
 import { catalog } from '../data/catalog';
-import { aiToMatchSetup, buildOpponent, divisionOpponent, QUICK_OPPONENTS, type TeamBuild } from './teams';
+import { aiToMatchSetup, buildOpponent, clubTeam, divisionOpponent, QUICK_OPPONENTS, type TeamBuild } from './teams';
+import { mixTeam, TOURNAMENTS, type TournamentDef } from './tournaments';
 
 /** Nombre visible de un futbolista para las estadísticas de la copa. */
 export const cupPlayerName = (versionId: string | undefined, fallback: string) => {
@@ -20,7 +21,12 @@ export const CUP_ROUNDS = ['Cuartos de final', 'Semifinal', 'Final'] as const;
 export const CUP_TEAMS = 8;
 export const USER_ID = 'user';
 
-export type CupTeamSource = { kind: 'quick'; id: string } | { kind: 'division'; level: number; game: number };
+export type CupTeamSource =
+  | { kind: 'quick'; id: string }
+  | { kind: 'division'; level: number; game: number }
+  | { kind: 'club'; clubId: string }
+  | { kind: 'mix'; tournament: string; edition: number; index: number };
+export type RivalMode = 'real' | 'mix';
 
 export interface CupTeamRef {
   id: string;
@@ -52,6 +58,10 @@ export interface CupPlayerLine {
 }
 
 export interface CupState {
+  /** Torneo al que pertenece este estado. */
+  defId: string;
+  /** Rivales: clubes reales o equipos mixtos con química. */
+  mode: RivalMode;
   status: 'idle' | 'running' | 'eliminated' | 'won';
   titles: number;
   /** Nº de edición (para variar participantes y semillas). */
@@ -69,7 +79,9 @@ export interface CupMatchReport {
   lines: { key: string; name: string; teamId: string; versionId?: string; goals: number; assists: number; cleanSheets: number }[];
 }
 
-export const emptyCup = (titles = 0, edition = 0): CupState => ({
+export const emptyCup = (titles = 0, edition = 0, defId = 'ultimate', mode: RivalMode = 'mix'): CupState => ({
+  defId,
+  mode,
   status: 'idle',
   titles,
   edition,
@@ -80,10 +92,10 @@ export const emptyCup = (titles = 0, edition = 0): CupState => ({
 });
 
 /** Convierte partidas guardadas con el formato antiguo de copa. */
-export function normalizeCup(c: Partial<CupState> | undefined): CupState {
-  if (!c) return emptyCup();
-  if (!Array.isArray(c.teams) || !Array.isArray(c.fixtures) || !c.players) return emptyCup(c.titles ?? 0, c.titles ?? 0);
-  return { ...emptyCup(), ...c } as CupState;
+export function normalizeCup(c: Partial<CupState> | undefined, defId = 'ultimate'): CupState {
+  if (!c) return emptyCup(0, 0, defId);
+  if (!Array.isArray(c.teams) || !Array.isArray(c.fixtures) || !c.players) return emptyCup(c.titles ?? 0, c.titles ?? 0, defId);
+  return { ...emptyCup(0, 0, defId), ...c, defId } as CupState;
 }
 
 const DIVISION_GUESTS: CupTeamSource[] = [
@@ -95,19 +107,52 @@ const DIVISION_GUESTS: CupTeamSource[] = [
 
 export function buildCupTeam(ref: CupTeamRef): TeamBuild {
   const s = ref.source!;
-  return s.kind === 'quick' ? buildOpponent(s.id) : divisionOpponent(s.level, s.game);
+  switch (s.kind) {
+    case 'quick':
+      return buildOpponent(s.id);
+    case 'division':
+      return divisionOpponent(s.level, s.game);
+    case 'club':
+      return clubTeam(s.clubId);
+    case 'mix':
+      return mixTeam(s.tournament, s.edition, s.index);
+  }
+}
+
+/** Participantes de la IA según el torneo y el tipo de rivales. */
+function guestSources(def: TournamentDef, mode: RivalMode, edition: number, rng: ReturnType<typeof createRng>): CupTeamSource[] {
+  const n = CUP_TEAMS - 1;
+  if (mode === 'real') {
+    const pool = [...def.realClubs()];
+    // Sorteo ponderado: los mejores casi siempre están, pero no siempre los mismos.
+    const out: CupTeamSource[] = [];
+    while (out.length < n && pool.length) {
+      const pick = rng.weighted(
+        pool.map((c, i) => ({ c, i })),
+        (e) => 1 / (1 + e.i * 0.35),
+      ).c;
+      pool.splice(pool.indexOf(pick), 1);
+      out.push({ kind: 'club', clubId: pick });
+    }
+    return out;
+  }
+  if (def.id === 'ultimate') {
+    return [
+      ...QUICK_OPPONENTS.map((id) => ({ kind: 'quick' as const, id })),
+      ...[...DIVISION_GUESTS].sort(() => rng.next() - 0.5).slice(0, n - QUICK_OPPONENTS.length),
+    ];
+  }
+  return Array.from({ length: n }, (_, index) => ({ kind: 'mix' as const, tournament: def.id, edition, index }));
 }
 
 /** Crea una nueva edición: el usuario + 7 rivales sorteados en el cuadro. */
-export function createCup(prev: CupState, userName: string): CupState {
+export function createCup(prev: CupState, userName: string, mode: RivalMode = prev.mode): CupState {
+  const def = TOURNAMENTS.find((t) => t.id === prev.defId) ?? TOURNAMENTS[0];
   const edition = prev.edition + 1;
-  const rng = createRng(hashString(`cup-${edition}`));
-  const sources: CupTeamSource[] = [
-    ...QUICK_OPPONENTS.map((id) => ({ kind: 'quick' as const, id })),
-    ...[...DIVISION_GUESTS].sort(() => rng.next() - 0.5).slice(0, CUP_TEAMS - 1 - QUICK_OPPONENTS.length),
-  ];
+  const rng = createRng(hashString(`${def.id}-${edition}-${mode}`));
+  const sources = guestSources(def, mode, edition, rng);
   const guests: CupTeamRef[] = sources.map((source) => {
-    const t = source.kind === 'quick' ? buildOpponent(source.id) : divisionOpponent(source.level, source.game);
+    const t = buildCupTeam({ id: '', name: '', shortName: '', colors: { primary: '', secondary: '' }, source });
     return { id: t.id, name: t.name, shortName: t.shortName, colors: t.colors, source };
   });
   // Sorteo del cuadro.
@@ -121,7 +166,7 @@ export function createCup(prev: CupState, userName: string): CupState {
   order.splice(userSlot, 0, user);
   const fixtures: CupFixture[] = [];
   for (let i = 0; i < CUP_TEAMS / 2; i++) fixtures.push({ id: `r0-${i}`, round: 0, slot: i, home: order[i * 2].id, away: order[i * 2 + 1].id });
-  return { status: 'running', titles: prev.titles, edition, round: 0, teams: [user, ...guests], fixtures, players: {} };
+  return { defId: def.id, mode, status: 'running', titles: prev.titles, edition, round: 0, teams: [user, ...guests], fixtures, players: {} };
 }
 
 export const teamOf = (cup: CupState, id: string) => cup.teams.find((t) => t.id === id);

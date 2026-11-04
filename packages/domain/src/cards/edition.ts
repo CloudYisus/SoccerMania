@@ -42,3 +42,21 @@ export function ratingBand(rating: number): RatingBandId {
 
 /** Cartas a partir de este rating merecen animación de revelado ("walkout"). */
 export const WALKOUT_RATING = 88;
+
+/** Año de la temporada en curso: sus cartas de temporada son las cartas base del juego. */
+export const CURRENT_YEAR = 2026;
+
+/** Tipo de carta (para filtros y diseño). */
+export type CardType = 'base' | 'season' | 'event' | 'icon';
+
+/** Clasificación de una versión: evento > base (temporada actual) > temporada pasada. */
+export function versionType(v: { year: number; event?: string }): 'base' | 'season' | 'event' {
+  if (v.event) return 'event';
+  return v.year >= CURRENT_YEAR ? 'base' : 'season';
+}
+
+/** "2002-03" → "02/03" · "1970" → "1970". */
+export function seasonTag(season: string): string {
+  const m = /^\d{2}(\d{2})-(\d{2})$/.exec(season);
+  return m ? `${m[1]}/${m[2]}` : season;
+}

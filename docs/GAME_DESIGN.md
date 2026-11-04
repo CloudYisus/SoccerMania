@@ -53,3 +53,38 @@ Se registran estadísticas de todos los participantes:
 
 Se muestran junto al cuadro con la carta del líder. Inscripción: 2.500
 monedas; premio al campeón: 25.000.
+
+## Mercado: buscador
+
+El mercado no lista todo el catálogo. Funciona como un buscador, igual que en
+FUT. Filtros disponibles:
+- tipo de carta (temporada actual, temporadas pasadas, Iconos, Equipo del Año,
+  Promesas);
+- nombre (con sugerencias);
+- liga y club;
+- nacionalidad;
+- posición o línea;
+- media mínima y precio máximo.
+
+Cada búsqueda muestra las ofertas que los vendedores de la IA tienen publicadas
+en ese momento. Las cartas top tienen menos oferta. Los eventos e Iconos cotizan
+más.
+
+## Rivales: clubes reales o equipos mixtos
+
+- **Torneos** (8 equipos, eliminación directa, estadísticas):
+  - Copa Ultimate;
+  - Copa de Campeones (5 grandes ligas);
+  - copas de Inglaterra, España, Italia, Alemania y Francia;
+  - Copa de las Américas;
+  - Torneo de Leyendas (sólo equipos mixtos de Iconos y grandes temporadas).
+
+  Al inscribirse se elige el tipo de rivales:
+  - **Clubes reales**: su plantilla de la temporada, su formación y su estilo
+    (posesión, contraataque, presión alta…), con dificultad según su media.
+  - **Equipos mixtos**: generados con un núcleo de nación o liga para que
+    tengan química, con nivel y estilo variables.
+- **Divisiones**: al empezar cada temporada se elige entre equipos mixtos o
+  clubes reales del nivel de la división.
+- **Partido rápido**: equipos mixtos, más un selector de liga para jugar contra
+  cualquier club real.

@@ -1,4 +1,4 @@
-import type { Club, League, Nation } from '../world/types';
+import type { CardEvent, Club, League, Nation } from '../world/types';
 import type { Player, PlayerVersion, Position } from '../players/types';
 import type { PlayerCard } from './types';
 
@@ -9,6 +9,7 @@ export interface Catalog {
   clubs: ReadonlyMap<string, Club>;
   players: ReadonlyMap<string, Player>;
   versions: ReadonlyMap<string, PlayerVersion>;
+  events: ReadonlyMap<string, CardEvent>;
 }
 
 export interface CatalogData {
@@ -17,6 +18,7 @@ export interface CatalogData {
   clubs: Club[];
   players: Player[];
   versions: PlayerVersion[];
+  events?: CardEvent[];
 }
 
 export function buildCatalog(data: CatalogData): Catalog {
@@ -27,7 +29,10 @@ export function buildCatalog(data: CatalogData): Catalog {
     clubs: byId(data.clubs),
     players: byId(data.players),
     versions: byId(data.versions),
+    events: byId(data.events ?? []),
   };
+  if (catalog.versions.size !== data.versions.length) throw new Error('Catálogo: IDs de versión duplicados');
+  if (catalog.players.size !== data.players.length) throw new Error('Catálogo: IDs de jugador duplicados');
   validateCatalog(catalog);
   return catalog;
 }
@@ -46,6 +51,7 @@ export function validateCatalog(c: Catalog): void {
     if (!c.clubs.has(v.clubId)) throw new Error(`Versión ${v.id}: club ${v.clubId} inexistente`);
     if (!c.nations.has(v.nationCode)) throw new Error(`Versión ${v.id}: nación ${v.nationCode} inexistente`);
     if (!Number.isInteger(v.year) || v.year < 1900 || v.year > 2100) throw new Error(`Versión ${v.id}: año de edición inválido`);
+    if (v.event && !c.events.has(v.event)) throw new Error(`Versión ${v.id}: evento ${v.event} inexistente`);
     const expectedKind = v.position === 'GK' ? 'goalkeeper' : 'outfield';
     if (v.stats.kind !== expectedKind) throw new Error(`Versión ${v.id}: estadísticas incompatibles con ${v.position}`);
   }

@@ -77,6 +77,8 @@ export interface PlayerVersion {
   shirtNumber: number;
   /** Hito asociado (p. ej. "Campeones del mundo"). */
   milestone?: string;
+  /** Evento/equipo temático al que pertenece (p. ej. "toty-2012"): carta especial. */
+  event?: string;
 }
 
 export const OUTFIELD_STAT_KEYS = ['pac', 'sho', 'pas', 'dri', 'def', 'phy'] as const;

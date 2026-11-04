@@ -96,3 +96,31 @@ Además del foil, los colores y el brillo, cada año tiene un **marco propio**:
 Composición: la bandera ocupa la mitad superior sin obstáculos. El escudo va
 más abajo, en la frontera con el panel inferior. Debajo van el nombre (grande),
 la versión centrada y los seis atributos en tamaño grande, sin hueco intermedio.
+
+## Tipos de carta
+
+| Tipo | Cuándo | Diseño |
+|---|---|---|
+| **Base** | Temporada actual (2025-26) | Diseño estándar del juego. No muestra el año; la línea de versión indica sólo el club. |
+| **Temporada pasada** | Cualquier otra temporada | Placa grande "TEMPORADA 02/03" arriba a la derecha y el año gigante de fondo, en el color de su edición. Cada año tiene su paleta, foil, marco y silueta. Los años sin diseño curado reciben uno generado con el ángulo áureo, así cada año tiene una combinación de tonos distinta. |
+| **Evento** | `version.event` (p. ej. `toty-2012`) | Diseño de familia (Equipo del Año: azul noche, oro y constelación; Promesas: turquesa y violeta con destellos) con placa del evento y luz que recorre el marco. |
+| **Icono** | Propiedad del futbolista | Siempre con **borde interno blanco** entre el marco de su versión y la carta, más el sello "ICONO". |
+
+Eventos incluidos (selección propia del juego, sin marcas de terceros):
+- Equipo del Año 2012, 2017 y 2025: 15 cartas cada uno.
+- Promesas 2026: 10 cartas.
+
+Se definen en `packages/database/src/seed/events.ts`.
+
+## Catálogo ampliado
+
+`packages/database/src/seed/squads/*.ts` contiene en formato compacto
+(`Nombre|POS|media|nación|alt`) todas las plantillas de los clubes de las 5
+grandes ligas (96 clubes) y de 28 clubes de ligas secundarias:
+- Arabia Saudí, MLS, Portugal y Países Bajos;
+- Turquía, Liga MX, Brasil, Argentina y Escocia.
+
+`build.ts` deriva las estadísticas de la carta a partir de la posición y la
+media, y detecta jugadores duplicados. Son datos de demostración aproximados a
+2025-26 con información pública hasta 2025: pueden no reflejar los últimos
+fichajes y no son datos oficiales.

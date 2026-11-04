@@ -33,7 +33,9 @@ export type FoilPattern =
   | 'carbon'
   | 'grid'
   | 'aurora'
-  | 'hexgrid';
+  | 'hexgrid'
+  | 'stars'
+  | 'sparkle';
 
 export type FoilMotion = 'none' | 'sweep' | 'holo' | 'pulse';
 /** Ornamento del marco. */
@@ -144,24 +146,83 @@ export const EDITIONS: Record<number, EditionTheme> = Object.fromEntries(
   ].map((t) => [t.year, t]),
 );
 
-const FALLBACK_FOILS: FoilPattern[] = ['dots', 'diagonal', 'waves', 'hex', 'chevrons', 'grid', 'diamonds', 'scanlines'];
+const FALLBACK_FOILS: FoilPattern[] = ['dots', 'diagonal', 'waves', 'hex', 'chevrons', 'grid', 'diamonds', 'scanlines', 'lattice', 'crystal', 'zigzag', 'confetti'];
+const MOTIONS: FoilMotion[] = ['none', 'sweep', 'pulse', 'none', 'sweep'];
 
-/** Diseño determinista para años sin entrada curada. */
+/**
+ * Diseño determinista para años sin entrada curada: cada año recibe una pareja
+ * de tonos distinta (principal + contraste), su propio foil, marco y silueta,
+ * de modo que la paleta crece con el catálogo sin repetir combinaciones.
+ */
 function generated(year: number): EditionTheme {
-  const hue = (year * 47) % 360;
-  const h = (l: number, s = 70, a = 1) => `hsla(${hue}, ${s}%, ${l}%, ${a})`;
+  const hue = (year * 137.508) % 360; // ángulo áureo: tonos muy separados entre años vecinos
+  const hue2 = (hue + 150 + (year % 5) * 12) % 360;
+  const h = (l: number, sat = 70, a = 1, hh = hue) => `hsla(${Math.round(hh)}, ${sat}%, ${l}%, ${a})`;
   return T(
     year,
     `Edición ${year}`,
-    metal(h(92), h(55), h(22), h(35)),
-    h(5, 40),
-    h(55, 70, 0.38),
-    fill(h(88), h(65)),
-    h(70, 80),
-    h(60, 80, 0.5),
+    metal(h(93, 60), h(58, 75), h(24, 70), h(62, 75, 1, hue2)),
+    h(5, 45),
+    `linear-gradient(160deg, ${h(55, 75, 0.4)}, ${h(55, 75, 0.28, hue2)})`,
+    fill(h(90, 80), h(66, 80)),
+    h(72, 85, 1, hue2),
+    h(60, 85, 0.55),
     FALLBACK_FOILS[year % FALLBACK_FOILS.length],
-    'rgba(255,255,255,.18)',
+    'rgba(255,255,255,.2)',
+    MOTIONS[year % MOTIONS.length],
   );
+}
+
+/** Familias de cartas de evento: diseño propio, independiente del año. */
+export const EVENT_THEMES: Record<string, Omit<EditionTheme, 'year'>> = {
+  toty: {
+    name: 'Equipo del Año',
+    frame: 'linear-gradient(145deg, #fff6d0 0%, #e8b84a 18%, #1d2c7a 42%, #f8de8c 62%, #0b1550 82%, #d9a53a 100%)',
+    base: '#040a26',
+    tint: 'linear-gradient(170deg, rgba(40,80,230,.55), rgba(10,20,90,.5))',
+    rating: fill('#fff1c4', '#f2c35a'),
+    accent: '#ffd76a',
+    glow: 'rgba(90,150,255,.75)',
+    foil: 'stars',
+    foilInk: 'rgba(255,232,170,.85)',
+    motion: 'holo',
+    frameStyle: 'gems',
+    shape: 'notched',
+  },
+  promesas: {
+    name: 'Promesas',
+    frame: 'linear-gradient(145deg, #e8fffb 0%, #19c6a7 22%, #5b2ad6 50%, #a9f3ff 72%, #3b1a8f 100%)',
+    base: '#08061a',
+    tint: 'linear-gradient(160deg, rgba(25,198,167,.45), rgba(91,42,214,.45))',
+    rating: fill('#dcfff7', '#7ff5dd'),
+    accent: '#7ff5dd',
+    glow: 'rgba(120,90,255,.7)',
+    foil: 'sparkle',
+    foilInk: 'rgba(200,255,245,.7)',
+    motion: 'holo',
+    frameStyle: 'neon',
+    shape: 'arched',
+  },
+  heroes: {
+    name: 'Héroes',
+    frame: 'linear-gradient(145deg, #fff 0%, #ff8a3d 22%, #5a0d0d 50%, #ffd28a 72%, #3a0606 100%)',
+    base: '#140404',
+    tint: 'linear-gradient(160deg, rgba(255,110,40,.45), rgba(120,10,10,.45))',
+    rating: fill('#ffe2c4', '#ff9a50'),
+    accent: '#ffb070',
+    glow: 'rgba(255,120,40,.65)',
+    foil: 'rays',
+    foilInk: 'rgba(255,220,180,.5)',
+    motion: 'sweep',
+    frameStyle: 'double',
+    shape: 'sharp',
+  },
+};
+
+/** Tema de una carta: el del evento si lo tiene; si no, el de su año. */
+export function cardTheme(year: number, eventKind?: string): EditionTheme {
+  const ev = eventKind ? EVENT_THEMES[eventKind] : undefined;
+  return ev ? { ...ev, year } : getEdition(year);
 }
 
 export function getEdition(year: number): EditionTheme {
@@ -169,8 +230,8 @@ export function getEdition(year: number): EditionTheme {
 }
 
 /** Variables CSS de una edición (para cartas, filas, etiquetas, sobres…). */
-export function editionStyle(year: number): CSSProperties {
-  const e = getEdition(year);
+export function editionStyle(year: number, eventKind?: string): CSSProperties {
+  const e = cardTheme(year, eventKind);
   return {
     '--e-frame': e.frame,
     '--e-base': e.base,

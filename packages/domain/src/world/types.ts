@@ -1,3 +1,5 @@
+import type { PlayStyle } from '../tactics/tactics';
+import type { FormationId } from '../squad/formations';
 /**
  * Entidades del "mundo" futbolístico. Los identificadores internos son estables
  * y propios del juego; los identificadores de proveedores externos se guardan
@@ -47,4 +49,20 @@ export interface Club {
   theSportsDbName?: string;
   /** El club/selección es histórico y requiere escudo manual. */
   historical?: boolean;
+  /** Estilo de juego del equipo real cuando lo controla la IA. */
+  style?: PlayStyle;
+  /** Formación habitual del equipo real. */
+  formation?: FormationId;
+}
+
+/** Evento o equipo temático con cartas especiales (p. ej. "Equipo del Año 2012"). */
+export interface CardEvent {
+  id: string;
+  /** Familia de diseño: todas las cartas de una familia comparten estética. */
+  kind: 'toty' | 'promesas' | 'heroes';
+  name: string;
+  /** Nombre corto para la carta (p. ej. "EQUIPO DEL AÑO"). */
+  cardName: string;
+  year: number;
+  description: string;
 }

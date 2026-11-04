@@ -611,3 +611,125 @@
 .fu-card[data-size='sm'] .fu-card__stat span {
   font-size: 0.72em;
 }
+
+/* ═════════════ TEMPORADAS PASADAS: año protagonista ═════════════ */
+.fu-card__plaque {
+  position: absolute;
+  z-index: 3;
+  top: 0.75em;
+  right: 0.75em;
+  min-width: 3.9em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.28em 0.45em 0.32em;
+  border-radius: 0.35em;
+  color: #0b0c0f;
+  background: var(--e-rating);
+  box-shadow:
+    0 0 0 0.08em rgba(0, 0, 0, 0.55),
+    0 0 0 0.2em var(--e-accent),
+    0 0.2em 0.6em rgba(0, 0, 0, 0.6),
+    0 0 1em var(--e-glow);
+}
+.fu-card__plaque small {
+  font-family: var(--font-ui);
+  font-weight: 800;
+  font-size: 0.55em;
+  letter-spacing: 0.16em;
+  line-height: 1.1;
+  opacity: 0.75;
+}
+.fu-card__plaque b {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 2em;
+  line-height: 0.95;
+  letter-spacing: 0.01em;
+}
+/* Año gigante de fondo, en el color de la edición */
+.fu-card__watermark {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 7%;
+  translate: -50% 0;
+  font-family: var(--font-display);
+  font-size: 10.5em;
+  line-height: 0.8;
+  letter-spacing: -0.03em;
+  color: var(--e-accent);
+  opacity: 0.32;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* ═════════════ CARTAS DE EVENTO ═════════════ */
+.fu-card__plaque--event {
+  min-width: 4.6em;
+  background: linear-gradient(180deg, #fffaf0, var(--e-accent));
+}
+.fu-card__plaque--event small {
+  max-width: 6.5em;
+  text-align: center;
+  font-size: 0.5em;
+}
+.fu-card[data-event] .fu-card__ring::after {
+  opacity: 1;
+  animation: ring-run 3.8s linear infinite;
+}
+.fu-card[data-event='toty'] .fu-card__frame {
+  box-shadow:
+    0 0 0 0.06em rgba(0, 0, 0, 0.75),
+    0 0 0.9em rgba(90, 150, 255, 0.65),
+    inset 0 0.09em 0 rgba(255, 255, 255, 0.6);
+}
+/* Constelación: el Equipo del Año brilla sobre azul noche */
+.fu-card[data-event='toty'] .fu-card__panel {
+  background:
+    radial-gradient(0.12em 0.12em at 18% 22%, #fff 40%, transparent),
+    radial-gradient(0.1em 0.1em at 72% 38%, #fff 40%, transparent),
+    radial-gradient(0.14em 0.14em at 44% 64%, #ffe7a8 40%, transparent),
+    radial-gradient(0.1em 0.1em at 86% 78%, #fff 40%, transparent),
+    radial-gradient(0.1em 0.1em at 30% 86%, #fff 40%, transparent),
+    radial-gradient(90% 70% at 50% 0%, rgba(80, 130, 255, 0.35), transparent 70%),
+    linear-gradient(180deg, transparent, rgba(0, 0, 20, 0.5));
+}
+.fu-card[data-event='toty'] .fu-card__name {
+  background: linear-gradient(180deg, #fff 0%, #ffeec2 55%, #f2c35a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0.06em 0.1em rgba(0, 0, 0, 0.8));
+}
+.fu-card[data-event='promesas'] .fu-card__panel {
+  background:
+    radial-gradient(80% 60% at 20% 0%, rgba(25, 198, 167, 0.35), transparent 70%),
+    radial-gradient(80% 60% at 80% 10%, rgba(130, 80, 255, 0.4), transparent 70%),
+    linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.35));
+}
+.fu-card[data-event='promesas'] .fu-card__name {
+  background: linear-gradient(90deg, #a9fff0, #ffffff 50%, #c8b4ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0.06em 0.1em rgba(0, 0, 0, 0.8));
+}
+
+.fu-card[data-size='xs'] .fu-card__plaque {
+  top: 0.9em;
+  right: 0.9em;
+  min-width: 4.4em;
+}
+.fu-card[data-size='xs'] .fu-card__plaque small {
+  display: none;
+}
+.fu-card[data-size='xs'] .fu-card__plaque b {
+  font-size: 2.4em;
+}
+.fu-card[data-size='xs'] .fu-card__watermark {
+  display: none;
+}

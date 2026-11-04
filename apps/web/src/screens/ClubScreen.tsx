@@ -5,6 +5,7 @@ import {
   priceRange,
   quickSellValue,
   squadCardIds,
+  versionType,
   versionsOfPlayer,
   type PositionLine,
 } from '@fu/domain';
@@ -154,8 +155,12 @@ function CardDetail({ cardId, inSquad, listed, onDone }: { cardId: string; inSqu
         <PlayerCard card={card} size="lg" tilt interactive />
         <div className="card-detail__info">
           <div className="card-detail__tags">
-            <span className="tag tag--edition" style={editionStyle(r.version.year)}>
-              Edición {getEdition(r.version.year).name} {r.version.year}
+            <span className="tag tag--edition" style={editionStyle(r.version.year, r.version.event ? catalog.events.get(r.version.event)?.kind : undefined)}>
+              {r.version.event
+                ? catalog.events.get(r.version.event)?.name
+                : versionType(r.version) === 'base'
+                  ? 'Temporada actual'
+                  : `Edición ${getEdition(r.version.year).name} ${r.version.year}`}
             </span>
             {r.player.icon && <span className="tag tag--icon">★ Icono</span>}
           </div>

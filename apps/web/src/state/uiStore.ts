@@ -19,6 +19,8 @@ export interface Toast {
 
 export interface MatchRequest {
   mode: 'quick' | 'division' | 'cup';
+  /** Torneo (si mode = 'cup'). */
+  tournamentId?: string;
   opponent: TeamBuild;
   difficulty: number;
   title: string;

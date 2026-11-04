@@ -1,9 +1,9 @@
 import { memo, useRef, type CSSProperties, type MouseEvent } from 'react';
-import { editionTag, POSITION_LABELS, statEntries, WALKOUT_RATING, type PlayerCard as Card } from '@fu/domain';
-import { version as resolveVersion } from '../../data/catalog';
+import { editionTag, POSITION_LABELS, seasonTag, statEntries, versionType, WALKOUT_RATING, type PlayerCard as Card } from '@fu/domain';
+import { catalog, version as resolveVersion } from '../../data/catalog';
 import { FlagArt } from './FlagArt';
 import { ClubCrest } from './ClubCrest';
-import { editionStyle, getEdition } from './editions';
+import { cardTheme, editionStyle } from './editions';
 import './card.css';
 import './editions.css';
 
@@ -74,15 +74,20 @@ export const PlayerCard = memo(function PlayerCard({
   const vid = card?.versionId ?? versionId;
   if (!vid) throw new Error('PlayerCard requiere card o versionId');
   const { version, player, club, nation } = resolveVersion(vid);
-  const edition = getEdition(version.year);
+  const type = versionType(version);
+  const event = version.event ? catalog.events.get(version.event) : undefined;
+  const edition = cardTheme(version.year, event?.kind);
+  // Base (temporada actual): sólo el club. Temporadas pasadas: club + año. Eventos: club + temporada.
+  const versionLine =
+    type === 'base' ? version.label : type === 'event' ? `${club.shortName.charAt(0)}${club.shortName.slice(1).toLowerCase()} ${seasonTag(version.season)}` : versionLabel(version.label, version.season);
   const position = card?.positionOverride ?? version.position;
   const stats = statEntries(version.stats);
   // Línea secundaria sin repetir lo que ya dice la versión ("Inter 25/26" no repite "FC Internazionale").
   const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const labelN = norm(version.label);
+  const labelN = norm(versionLine);
   const showNation = !labelN.includes(norm(nation.name).slice(0, 4));
   const showClub = !norm(club.name).includes(labelN.split(' ')[0]) && !labelN.includes(norm(club.shortName).split(' ')[0]);
-  const subline = [showNation ? nation.name : null, showClub ? club.name : null, version.milestone].filter(Boolean).join(' · ');
+  const subline = [showNation ? nation.name : null, showClub ? club.name : null, event ? null : version.milestone].filter(Boolean).join(' · ');
 
   const onMove = (e: MouseEvent<HTMLDivElement>) => {
     if (!tilt || !ref.current) return;
@@ -99,13 +104,15 @@ export const PlayerCard = memo(function PlayerCard({
     ref.current?.style.setProperty('--ry', '0deg');
   };
 
-  const label = `${player.knownAs}${player.icon ? ' (Icono)' : ''}, ${versionLabel(version.label, version.season)}, ${version.rating} ${POSITION_LABELS[position]}, edición ${edition.name} ${version.year}`;
+  const label = `${player.knownAs}${player.icon ? ' (Icono)' : ''}, ${event ? event.name + ', ' : ''}${versionLine}, ${version.rating} ${POSITION_LABELS[position]}${type === 'base' ? '' : `, edición ${edition.name} ${version.year}`}`;
 
   return (
     <div
       ref={ref}
       className={`fu-card ${className ?? ''}`}
       data-year={version.year}
+      data-type={type}
+      data-event={event?.kind}
       data-motion={edition.motion}
       data-frame={edition.frameStyle}
       data-shape={edition.shape}
@@ -116,7 +123,7 @@ export const PlayerCard = memo(function PlayerCard({
       data-tilt={tilt}
       data-selected={selected ?? false}
       data-dim={dim ?? false}
-      style={{ ...editionStyle(version.year), '--w': width ?? `${WIDTHS[size]}px`, ...style } as CSSProperties}
+      style={{ ...editionStyle(version.year, event?.kind), '--w': width ?? `${WIDTHS[size]}px`, ...style } as CSSProperties}
       onMouseMove={onMove}
       onMouseLeave={onLeave}
       onClick={onClick}
@@ -155,11 +162,23 @@ export const PlayerCard = memo(function PlayerCard({
               </span>
             )}
           </div>
-          <div className="fu-card__edition">
-            <span className="fu-card__year" title={`Edición ${edition.name} ${version.year}`}>
-              {editionTag(version.year)}
-            </span>
-          </div>
+          {type === 'season' && (
+            <>
+              <div className="fu-card__watermark" aria-hidden>
+                {editionTag(version.year)}
+              </div>
+              <div className="fu-card__plaque" title={`Edición ${edition.name} ${version.year}`}>
+                <small>TEMPORADA</small>
+                <b>{seasonTag(version.season)}</b>
+              </div>
+            </>
+          )}
+          {event && (
+            <div className="fu-card__plaque fu-card__plaque--event" title={event.name}>
+              <small>{event.cardName}</small>
+              <b>{event.kind === 'promesas' ? `'${String(event.year).slice(-2)}` : event.year}</b>
+            </div>
+          )}
           {player.icon && (
             <div className="fu-card__icon" title="Icono">
               <StarIcon />
@@ -171,7 +190,7 @@ export const PlayerCard = memo(function PlayerCard({
             <div className="fu-card__name" style={{ '--name-size': nameSize(player.knownAs) } as CSSProperties}>
               {player.knownAs}
             </div>
-            <div className="fu-card__version">{versionLabel(version.label, version.season)}</div>
+            <div className="fu-card__version">{versionLine}</div>
             <div className="fu-card__club">{subline}</div>
             <div className="fu-card__stats">
               {stats.map((s) => (

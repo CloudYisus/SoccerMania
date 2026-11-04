@@ -1,9 +1,23 @@
 import { buildCatalog, type CatalogData } from '@fu/domain';
 import { CLUBS, LEAGUES, MANAGERS, NATIONS } from './seed/world';
 import { PLAYERS, VERSIONS } from './seed/players';
+import { expandSquads } from './seed/squads/build';
+import { ENG } from './seed/squads/eng';
+import { ESP } from './seed/squads/esp';
+import { ITA } from './seed/squads/ita';
+import { GER } from './seed/squads/ger';
+import { FRA } from './seed/squads/fra';
+import { REST } from './seed/squads/rest';
+import { eventCatalog, EVENTS } from './seed/events';
+
+/** Ligas principales con plantilla completa de todos sus clubes. */
+export const BIG_FIVE = ['eng-premier', 'esp-laliga', 'ita-serie-a', 'ger-bundesliga', 'fra-ligue-1'] as const;
+
+const expanded = expandSquads([...ENG, ...ESP, ...ITA, ...GER, ...FRA, ...REST], { clubs: CLUBS, players: PLAYERS, versions: VERSIONS });
+const withEvents = eventCatalog(expanded.players);
 
 export { STARTER, OPPONENTS, type OpponentDefinition } from './seed/starter';
-export { MANAGERS };
+export { MANAGERS, EVENTS };
 export * from './repository';
 
 /**
@@ -15,9 +29,10 @@ export const DEMO_DATA_NOTICE =
 export const demoCatalogData: CatalogData = {
   nations: NATIONS,
   leagues: LEAGUES,
-  clubs: CLUBS,
-  players: PLAYERS,
-  versions: VERSIONS,
+  clubs: expanded.clubs,
+  players: withEvents.players,
+  versions: [...expanded.versions, ...withEvents.versions],
+  events: EVENTS,
 };
 
 export const demoCatalog = buildCatalog(demoCatalogData);

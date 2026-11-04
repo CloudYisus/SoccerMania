@@ -392,6 +392,7 @@ export default function MatchScreen() {
           : undefined;
       const r = useGame.getState().recordMatch({
         cupReport,
+        tournamentId: req.tournamentId,
         mode: req.mode,
         opponent: req.opponent.name,
         goalsFor: snap.score.home,

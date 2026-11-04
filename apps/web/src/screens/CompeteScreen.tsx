@@ -5,10 +5,11 @@ import { Icon } from '../components/ui/icons';
 import { Button, Coins, Meter, SectionHeader, Segmented } from '../components/ui/ui';
 import { CHALLENGES } from '../state/challenges';
 import { catalog } from '../data/catalog';
-import { CUP_ENTRY_FEE, CUP_ROUNDS, DIVISION_SEASON_GAMES, PROMOTION_POINTS, RELEGATION_POINTS, useGame } from '../state/gameStore';
+import { CUP_ROUNDS, DIVISION_SEASON_GAMES, PROMOTION_POINTS, RELEGATION_POINTS, useGame } from '../state/gameStore';
 import { useSquadView } from '../state/squadView';
-import { buildOpponent, divisionOpponent, QUICK_OPPONENTS, type TeamBuild } from '../state/teams';
-import { buildCupTeam, teamOf, USER_ID, userFixture } from '../state/cup';
+import { buildOpponent, clubTeam, divisionOpponent, QUICK_OPPONENTS, REAL_CLUBS, type TeamBuild } from '../state/teams';
+import { TOURNAMENTS, tournamentById } from '../state/tournaments';
+import { buildCupTeam, normalizeCup, teamOf, USER_ID, userFixture, type RivalMode } from '../state/cup';
 import { CupBracket, CupStats } from './CupView';
 import { feedback, useUi, type MatchRequest } from '../state/uiStore';
 import './compete.css';
@@ -86,7 +87,13 @@ export function CompeteScreen() {
   const startMatch = useUi((s) => s.startMatch);
   const go = useUi((s) => s.go);
   const division = useGame((s) => s.division);
-  const cup = useGame((s) => s.cup);
+  const tournaments = useGame((s) => s.tournaments);
+  const [tid, setTid] = useState<string>('ultimate');
+  const tdef = tournamentById(tid);
+  const cup = normalizeCup(tournaments[tid], tid);
+  const [tMode, setTMode] = useState<RivalMode>(tdef.modes[0]);
+  useEffect(() => setTMode(tdef.modes[0]), [tdef]);
+  const [qLeague, setQLeague] = useState<string>('esp-laliga');
   const coins = useGame((s) => s.coins);
   const claimed = useGame((s) => s.challenges);
 
@@ -99,18 +106,26 @@ export function CompeteScreen() {
   };
 
   const quickTeams = useMemo(() => QUICK_OPPONENTS.map(buildOpponent), []);
-  const divOpp = useMemo(() => divisionOpponent(division.level, division.played), [division.level, division.played]);
+  const divOpp = useMemo(() => divisionOpponent(division.level, division.played, division.rivals ?? 'mix'), [division.level, division.played, division.rivals]);
+  const quickClubs = useMemo(
+    () =>
+      REAL_CLUBS.filter((c) => c.leagueId === qLeague)
+        .map((c) => clubTeam(c.id))
+        .sort((a, b) => b.rating - a.rating),
+    [qLeague],
+  );
+  const quickLeagues = useMemo(() => [...new Set(REAL_CLUBS.map((c) => c.leagueId))].map((id) => catalog.leagues.get(id)!), []);
   const cupFx = cup.status === 'running' ? userFixture(cup) : undefined;
   const cupOppId = cupFx ? (cupFx.home === USER_ID ? cupFx.away : cupFx.home) : null;
   const cupOpp = useMemo(() => {
     const ref = cupOppId ? teamOf(cup, cupOppId) : undefined;
     return ref?.source ? buildCupTeam(ref) : null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cupOppId, cup.edition]);
+  }, [cupOppId, cup.edition, tid]);
 
   return (
     <div className="compete">
-      <SectionHeader eyebrow="Competir" title={{ quick: 'Partido rápido', divisions: 'Divisiones', cup: 'Copa Ultimate', challenges: 'Desafíos' }[mode]}>
+      <SectionHeader eyebrow="Competir" title={{ quick: 'Partido rápido', divisions: 'Divisiones', cup: 'Torneos', challenges: 'Desafíos' }[mode]}>
         <Segmented<Mode>
           label="Modo"
           value={mode}
@@ -118,7 +133,7 @@ export function CompeteScreen() {
           options={[
             { id: 'quick', label: 'Partido rápido' },
             { id: 'divisions', label: 'Divisiones' },
-            { id: 'cup', label: 'Copa' },
+            { id: 'cup', label: 'Torneos' },
             { id: 'challenges', label: 'Desafíos' },
           ]}
         />
@@ -146,17 +161,44 @@ export function CompeteScreen() {
       </div>
 
       {mode === 'quick' && (
-        <div className="team-grid stagger">
-          {quickTeams.map((t) => (
-            <TeamPanel
-              key={t.id}
-              team={t}
-              cta="Jugar amistoso"
-              disabled={!view.complete}
-              onPlay={() => play({ mode: 'quick', opponent: t, difficulty: t.difficulty, title: 'Partido rápido' })}
-            />
-          ))}
-        </div>
+        <>
+          <h3 className="compete__sub t-ui">Equipos mixtos</h3>
+          <div className="team-grid stagger">
+            {quickTeams.map((t) => (
+              <TeamPanel
+                key={t.id}
+                team={t}
+                cta="Jugar amistoso"
+                disabled={!view.complete}
+                onPlay={() => play({ mode: 'quick', opponent: t, difficulty: t.difficulty, title: 'Partido rápido' })}
+              />
+            ))}
+          </div>
+          <div className="compete__subrow">
+            <h3 className="compete__sub t-ui">Clubes reales</h3>
+            <label className="select select--inline">
+              <span className="t-ui">Liga</span>
+              <select value={qLeague} onChange={(e) => setQLeague(e.target.value)} aria-label="Liga">
+                {quickLeagues.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="team-grid">
+            {quickClubs.map((t) => (
+              <TeamPanel
+                key={t.id}
+                team={t}
+                cta="Jugar amistoso"
+                disabled={!view.complete}
+                onPlay={() => play({ mode: 'quick', opponent: t, difficulty: t.difficulty, title: `Amistoso · ${t.name}` })}
+              />
+            ))}
+          </div>
+        </>
       )}
 
       {mode === 'divisions' && (
@@ -211,6 +253,21 @@ export function CompeteScreen() {
               )}
             </div>
           </section>
+          <div className="division__rivals panel">
+            <span className="t-ui muted">Rivales de la temporada</span>
+            <Segmented<'mix' | 'real'>
+              label="Rivales"
+              value={division.rivals ?? 'mix'}
+              onChange={(v) => feedback(useGame.getState().setDivisionRivals(v))}
+              options={[
+                { id: 'mix', label: 'Equipos mixtos' },
+                { id: 'real', label: 'Clubes reales' },
+              ]}
+            />
+            <span className="muted small">
+              {division.played > 0 ? 'Se puede cambiar al empezar la próxima temporada.' : 'Mixtos: plantillas con química como la tuya. Reales: clubes de verdad según el nivel de la división.'}
+            </span>
+          </div>
           <TeamPanel
             team={divOpp}
             cta={`Jugar jornada ${division.played + 1}`}
@@ -222,32 +279,57 @@ export function CompeteScreen() {
 
       {mode === 'cup' && (
         <div className="cup">
+          <div className="tourney-grid">
+            {TOURNAMENTS.map((t) => {
+              const st = normalizeCup(tournaments[t.id], t.id);
+              return (
+                <button key={t.id} className="tourney" data-on={t.id === tid} style={{ '--t-accent': t.accent } as React.CSSProperties} onClick={() => setTid(t.id)}>
+                  <Icon.Trophy size={22} />
+                  <b className="t-display">{t.name}</b>
+                  <span className="muted small">{t.description}</span>
+                  <span className="tourney__meta t-ui">
+                    {st.status === 'running' ? `En juego · ${CUP_ROUNDS[userFixture(st)?.round ?? 0]}` : `Premio ${t.prize.toLocaleString('es-ES')}`}
+                    {st.titles > 0 && ` · ${st.titles} 🏆`}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
           {cup.status === 'running' && cupOpp && cupFx ? (
             <TeamPanel
               team={cupOpp}
               cta={`Jugar ${CUP_ROUNDS[cupFx.round].toLowerCase()}`}
               disabled={!view.complete}
-              extra={<p className="muted small">{CUP_ROUNDS[cupFx.round]} · edición {cup.edition}. Partido único: si hay empate, penaltis.</p>}
-              onPlay={() => play({ mode: 'cup', opponent: cupOpp, difficulty: cupOpp.difficulty, title: `Copa Ultimate · ${CUP_ROUNDS[cupFx.round]}` })}
+              extra={<p className="muted small">{tdef.name} · {CUP_ROUNDS[cupFx.round]} · edición {cup.edition} · rivales {cup.mode === 'real' ? 'reales' : 'mixtos'}. Partido único: si hay empate, penaltis.</p>}
+              onPlay={() => play({ mode: 'cup', tournamentId: tid, opponent: cupOpp, difficulty: cupOpp.difficulty, title: `${tdef.name} · ${CUP_ROUNDS[cupFx.round]}` })}
             />
           ) : (
             <section className="cup__entry panel">
-              <h3 className="t-display">
-                {cup.status === 'won' ? '¡Campeón!' : cup.status === 'eliminated' ? 'Eliminado' : 'Copa Ultimate'}
-              </h3>
+              <h3 className="t-display">{cup.status === 'won' ? '¡Campeón!' : cup.status === 'eliminated' ? 'Eliminado' : tdef.name}</h3>
               <p className="muted">
-                {cup.status === 'eliminated' && cup.champion
-                  ? `El título fue para ${teamOf(cup, cup.champion)?.name}. `
-                  : ''}
-                Ocho equipos a eliminación directa. Todos los partidos del torneo se juegan con el motor del juego y cuentan para goleadores, asistentes y porterías a cero. El campeón gana 25.000 monedas.
+                {cup.status === 'eliminated' && cup.champion ? `El título fue para ${teamOf(cup, cup.champion)?.name}. ` : ''}
+                {tdef.description} Ocho equipos a eliminación directa; todos los partidos cuentan para goleadores, asistentes y porterías a cero.
               </p>
+              {tdef.modes.length > 1 && (
+                <div className="cup__mode">
+                  <span className="t-ui muted">Rivales</span>
+                  <Segmented<RivalMode>
+                    label="Rivales"
+                    value={tMode}
+                    onChange={setTMode}
+                    options={tdef.modes.map((m) => ({ id: m, label: m === 'real' ? 'Clubes reales' : 'Equipos mixtos' }))}
+                  />
+                </div>
+              )}
               <div className="cup__fee">
                 <span className="t-ui muted">Inscripción</span>
-                <Coins value={CUP_ENTRY_FEE} />
+                <Coins value={tdef.fee} />
+                <span className="t-ui muted">· Premio</span>
+                <Coins value={tdef.prize} />
                 <span className="t-ui muted">· Títulos: {cup.titles}</span>
               </div>
-              <Button variant="gold" disabled={coins < CUP_ENTRY_FEE} onClick={() => feedback(useGame.getState().startCup())}>
-                {cup.status === 'idle' && cup.edition === 0 ? 'Inscribirse' : 'Nueva edición'}
+              <Button variant="gold" disabled={coins < tdef.fee} onClick={() => feedback(useGame.getState().startTournament(tid, tMode))}>
+                {cup.edition === 0 ? 'Inscribirse' : 'Nueva edición'}
               </Button>
             </section>
           )}

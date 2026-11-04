@@ -207,8 +207,8 @@ export const VERSIONS: PlayerVersion[] = [
   V('theo-milan23', 'theo', "Milan '23", '2022-23', 'milan', 'LB', ['LWB'], 86, o(93, 71, 77, 82, 78, 82), 19),
   V('debruyne-city', 'debruyne', "Man City '23", '2022-23', 'man-city', 'CM', ['CAM'], 91, o(72, 88, 94, 87, 64, 78), 17, 'Triplete'),
   // ── TEMPORADA ACTUAL · ESTRELLAS ───────────────────────
-  V('messi-miami', 'messi', 'Inter Miami', '2025', 'inter-miami', 'CAM', ['RW', 'CF'], 88, o(74, 88, 90, 92, 33, 63), 10),
-  V('cr7-nassr', 'cr7', 'Al Nassr', '2025', 'al-nassr', 'ST', [], 85, o(78, 90, 75, 80, 33, 76), 7),
+  V('messi-miami', 'messi', 'Inter Miami', '2025-26', 'inter-miami', 'CAM', ['RW', 'CF'], 88, o(74, 88, 90, 92, 33, 63), 10),
+  V('cr7-nassr', 'cr7', 'Al Nassr', '2025-26', 'al-nassr', 'ST', [], 85, o(78, 90, 75, 80, 33, 76), 7),
   V('mbappe-rm', 'mbappe', 'Real Madrid', '2025-26', 'real-madrid', 'ST', ['LW'], 91, o(96, 91, 80, 92, 36, 77), 10),
   V('haaland-city', 'haaland', 'Man City', '2025-26', 'man-city', 'ST', [], 91, o(88, 93, 66, 80, 45, 88), 9),
   V('bellingham-rm', 'bellingham', 'Real Madrid', '2025-26', 'real-madrid', 'CAM', ['CM'], 89, o(80, 85, 84, 88, 77, 84), 5),

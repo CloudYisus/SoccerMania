@@ -29,7 +29,8 @@ import {
   type TeamTactics,
 } from '@fu/domain';
 import { allVersions, catalog, STARTER } from '../data/catalog';
-import { applyResult, CUP_ROUNDS, createCup, cupPlayerName as cupName, emptyCup, normalizeCup, simulatePending, USER_ID, userFixture, type CupMatchReport, type CupState } from './cup';
+import { applyResult, CUP_ROUNDS, createCup, cupPlayerName as cupName, emptyCup, normalizeCup, simulatePending, USER_ID, userFixture, type CupMatchReport, type CupState, type RivalMode } from './cup';
+import { tournamentById } from './tournaments';
 
 export interface AiListing {
   id: string;
@@ -65,6 +66,8 @@ export interface DivisionState {
   losses: number;
   best: number;
   lastOutcome: 'promoted' | 'relegated' | 'stayed' | null;
+  /** Rivales de la temporada: equipos mixtos o clubes reales. */
+  rivals?: 'mix' | 'real';
 }
 
 export const DIVISION_SEASON_GAMES = 7;
@@ -84,7 +87,8 @@ interface GameData {
   market: { listings: AiListing[]; refreshedAt: number; seed: number };
   myListings: MyListing[];
   division: DivisionState;
-  cup: CupState;
+  /** Estado de cada torneo (por id de torneo). */
+  tournaments: Record<string, CupState>;
   challenges: Record<string, boolean>;
   history: MatchRecord[];
 }
@@ -109,11 +113,14 @@ interface GameActions {
   cancelListing(listingId: string): void;
   processListings(now: number): MyListing[];
   buyListing(listingId: string): ActionResult;
+  /** Compra una oferta encontrada con el buscador del mercado. */
+  buySearchListing(versionId: string, price: number): ActionResult;
   refreshMarket(force?: boolean): void;
   recordMatch(
-    r: Omit<MatchRecord, 'id' | 'at' | 'coins'> & { difficulty: number; cupReport?: CupMatchReport },
+    r: Omit<MatchRecord, 'id' | 'at' | 'coins'> & { difficulty: number; cupReport?: CupMatchReport; tournamentId?: string },
   ): { coins: number; xp: number; levelsGained: number; note?: string };
-  startCup(): ActionResult;
+  startTournament(defId: string, mode: RivalMode): ActionResult;
+  setDivisionRivals(r: 'mix' | 'real'): ActionResult;
   claimChallenge(id: string, reward: number): ActionResult;
   reset(): void;
 }
@@ -167,7 +174,7 @@ function initialData(): GameData {
     market: { listings: generateMarket(seed, now), refreshedAt: now, seed },
     myListings: [],
     division: { level: 10, played: 0, points: 0, wins: 0, draws: 0, losses: 0, best: 10, lastOutcome: null },
-    cup: emptyCup(),
+    tournaments: {},
     challenges: {},
     history: [],
   };
@@ -337,6 +344,15 @@ export const useGame = create<GameState>()(
         return { ok: true, message: 'Fichaje completado. La carta está en tu club.' };
       },
 
+      buySearchListing(versionId, price) {
+        const s = get();
+        if (!catalog.versions.has(versionId)) return { ok: false, message: 'La carta ya no está disponible.' };
+        if (s.coins < price) return { ok: false, message: 'Monedas insuficientes.' };
+        const id = newCardId(s.cardSeq);
+        set({ coins: s.coins - price, cards: { ...s.cards, [id]: createCard(id, versionId, 'market', Date.now()) }, cardSeq: s.cardSeq + 1 });
+        return { ok: true, message: 'Fichaje completado. La carta está en tu club.' };
+      },
+
       refreshMarket(force) {
         const s = get();
         const now = Date.now();
@@ -358,7 +374,9 @@ export const useGame = create<GameState>()(
         let coins = reward.coins;
         let note: string | undefined;
         let division = s.division;
-        let cup = s.cup;
+        const tId = r.tournamentId ?? 'ultimate';
+        let cup = s.tournaments[tId] ?? emptyCup(0, 0, tId);
+        const tdef = tournamentById(tId);
 
         if (r.mode === 'division') {
           const d = { ...division, played: division.played + 1 };
@@ -387,7 +405,7 @@ export const useGame = create<GameState>()(
                 : outcome === 'relegated'
                   ? `Descenso a División ${level}. Bonus de temporada: ${seasonBonus.toLocaleString('es-ES')}`
                   : `Permanencia en División ${level}. Bonus de temporada: ${seasonBonus.toLocaleString('es-ES')}`;
-            division = { level, played: 0, points: 0, wins: 0, draws: 0, losses: 0, best: Math.min(d.best, level), lastOutcome: outcome };
+            division = { level, played: 0, points: 0, wins: 0, draws: 0, losses: 0, best: Math.min(d.best, level), lastOutcome: outcome, rivals: d.rivals };
           } else division = d;
         }
 
@@ -400,8 +418,8 @@ export const useGame = create<GameState>()(
           if (win) {
             if (fx.round >= CUP_ROUNDS.length - 1) {
               cup = { ...cup, round: null, status: 'won', titles: cup.titles + 1 };
-              coins += 25000;
-              note = '¡Campeón de la Copa Ultimate! +25.000 monedas';
+              coins += tdef.prize;
+              note = `¡Campeón de ${tdef.name}! +${tdef.prize.toLocaleString('es-ES')} monedas`;
             } else {
               // El resto de partidos de la ronda se disputan a la vez.
               cup = { ...simulatePending(cup, cupName, false), round: fx.round + 1 };
@@ -410,7 +428,7 @@ export const useGame = create<GameState>()(
           } else {
             // El torneo sigue sin el usuario hasta coronar campeón.
             cup = { ...simulatePending(cup, cupName, true), round: null, status: 'eliminated' };
-            note = 'Eliminado de la Copa Ultimate';
+            note = `Eliminado de ${tdef.name}`;
           }
         }
 
@@ -427,16 +445,33 @@ export const useGame = create<GameState>()(
           coins,
           at: Date.now(),
         };
-        set({ coins: s.coins + coins, progress, cards, division, cup, history: [rec, ...s.history].slice(0, 30) });
+        set({
+          coins: s.coins + coins,
+          progress,
+          cards,
+          division,
+          tournaments: r.mode === 'cup' ? { ...s.tournaments, [tId]: cup } : s.tournaments,
+          history: [rec, ...s.history].slice(0, 30),
+        });
         return { coins, xp: reward.xp, levelsGained, note };
       },
 
-      startCup() {
+      startTournament(defId, mode) {
         const s = get();
-        if (s.cup.status === 'running') return { ok: false, message: 'Ya estás compitiendo en la Copa.' };
-        if (s.coins < CUP_ENTRY_FEE) return { ok: false, message: 'Monedas insuficientes para la inscripción.' };
-        set({ coins: s.coins - CUP_ENTRY_FEE, cup: createCup(normalizeCup(s.cup), s.squad.name) });
-        return { ok: true, message: 'Inscripción completada. ¡Sorteo del cuadro realizado!' };
+        const def = tournamentById(defId);
+        const prev = normalizeCup(s.tournaments[defId], defId);
+        if (prev.status === 'running') return { ok: false, message: `Ya estás compitiendo en ${def.name}.` };
+        if (s.coins < def.fee) return { ok: false, message: 'Monedas insuficientes para la inscripción.' };
+        const cup = createCup({ ...prev, mode }, s.squad.name, mode);
+        set({ coins: s.coins - def.fee, tournaments: { ...s.tournaments, [defId]: cup } });
+        return { ok: true, message: `Inscripción en ${def.name} completada. ¡Sorteo realizado!` };
+      },
+
+      setDivisionRivals(rivals) {
+        const s = get();
+        if (s.division.played > 0) return { ok: false, message: 'Podrás cambiar el tipo de rivales al empezar la próxima temporada.' };
+        set({ division: { ...s.division, rivals } });
+        return { ok: true, message: rivals === 'real' ? 'Esta temporada te enfrentarás a clubes reales.' : 'Esta temporada te enfrentarás a equipos mixtos.' };
       },
 
       claimChallenge(id, reward) {
@@ -455,14 +490,19 @@ export const useGame = create<GameState>()(
       version: 1,
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => {
-        const { saveVersion, coins, progress, cards, cardSeq, squad, welcomeClaimed, market, myListings, division, cup, challenges, history } = s;
-        return { saveVersion, coins, progress, cards, cardSeq, squad, welcomeClaimed, market, myListings, division, cup, challenges, history };
+        const { saveVersion, coins, progress, cards, cardSeq, squad, welcomeClaimed, market, myListings, division, tournaments, challenges, history } = s;
+        return { saveVersion, coins, progress, cards, cardSeq, squad, welcomeClaimed, market, myListings, division, tournaments, challenges, history };
       },
       // Descarta partidas guardadas que referencian versiones ya inexistentes en el catálogo.
       merge: (persisted, current) => {
         const p = persisted as Partial<GameData> | undefined;
         if (!p?.cards || Object.values(p.cards).some((c) => !catalog.versions.has(c.versionId))) return current;
-        return { ...current, ...p, cup: normalizeCup(p.cup) };
+        // Migración: la antigua copa única pasa a ser el torneo "ultimate".
+        const legacy = (p as { cup?: Partial<CupState> }).cup;
+        const tournaments: Record<string, CupState> = {};
+        for (const [id, t] of Object.entries(p.tournaments ?? {})) tournaments[id] = normalizeCup(t, id);
+        if (legacy && !tournaments.ultimate) tournaments.ultimate = normalizeCup(legacy, 'ultimate');
+        return { ...current, ...p, tournaments };
       },
     },
   ),
