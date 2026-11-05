@@ -51,6 +51,28 @@ export function StarIcon() {
   );
 }
 
+export function LaurelIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      <path
+        d="M12 21c-4.5-1.6-7.5-5.6-7.5-10.4 0-1.9.5-3.7 1.3-5.3l1.3.7A9.6 9.6 0 0 0 6 10.6c0 4 2.4 7.4 6 8.8zm0 0c4.5-1.6 7.5-5.6 7.5-10.4 0-1.9-.5-3.7-1.3-5.3l-1.3.7c.7 1.4 1.1 3 1.1 4.6 0 4-2.4 7.4-6 8.8zM5 12.5c1.6.2 2.8 1.4 3 3-1.6-.2-2.8-1.4-3-3zm14 0c-1.6.2-2.8 1.4-3 3 1.6-.2 2.8-1.4 3-3zM4.6 8.3c1.4.5 2.3 1.8 2.2 3.3-1.4-.5-2.3-1.8-2.2-3.3zm14.8 0c-1.4.5-2.3 1.8-2.2 3.3 1.4-.5 2.3-1.8 2.2-3.3z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+/** Valor destacado de la placa de un evento (liga, año, "EN FORMA"…). */
+function plaqueValue(event: { kind: string; year: number; leagueId?: string }) {
+  if (event.kind === 'tots') {
+    const league = catalog.leagues.get(event.leagueId ?? '')?.shortName ?? String(event.year);
+    return event.year < 2025 ? `${league} '${String(event.year).slice(-2)}` : league;
+  }
+  if (event.kind === 'totw') return 'EN FORMA';
+  if (event.kind === 'toty' || event.kind === 'mundial' || event.kind === 'euro') return event.year;
+  return `'${String(event.year).slice(-2)}`;
+}
+
 /**
  * CardRenderer: compone cualquier carta a partir de sus datos.
  * Protagonistas: NACIÓN (bandera a sangre) + CLUB (escudo grande en el centro).
@@ -104,7 +126,7 @@ export const PlayerCard = memo(function PlayerCard({
     ref.current?.style.setProperty('--ry', '0deg');
   };
 
-  const label = `${player.knownAs}${player.icon ? ' (Icono)' : ''}, ${event ? event.name + ', ' : ''}${versionLine}, ${version.rating} ${POSITION_LABELS[position]}${type === 'base' ? '' : `, edición ${edition.name} ${version.year}`}`;
+  const label = `${player.knownAs}${player.icon ? ' (Icono)' : player.hero ? ' (Histórico)' : ''}, ${event ? event.name + ', ' : ''}${versionLine}, ${version.rating} ${POSITION_LABELS[position]}${type === 'base' ? '' : `, edición ${edition.name} ${version.year}`}`;
 
   return (
     <div
@@ -118,6 +140,7 @@ export const PlayerCard = memo(function PlayerCard({
       data-shape={edition.shape}
       data-elite={version.rating >= WALKOUT_RATING}
       data-icon={player.icon}
+      data-hero={!!player.hero && !player.icon}
       data-size={size}
       data-interactive={interactive || !!onClick}
       data-tilt={tilt}
@@ -176,7 +199,7 @@ export const PlayerCard = memo(function PlayerCard({
           {event && (
             <div className="fu-card__plaque fu-card__plaque--event" title={event.name}>
               <small>{event.cardName}</small>
-              <b>{event.kind === 'tots' ? catalog.leagues.get(event.leagueId ?? '')?.shortName ?? event.year : event.kind === 'toty' ? event.year : `'${String(event.year).slice(-2)}`}</b>
+              <b>{plaqueValue(event)}</b>
             </div>
           )}
           {player.icon && (
@@ -184,6 +207,13 @@ export const PlayerCard = memo(function PlayerCard({
               <StarIcon />
               <span>ICONO</span>
               <StarIcon />
+            </div>
+          )}
+          {player.hero && !player.icon && (
+            <div className="fu-card__icon fu-card__icon--hero" title="Histórico">
+              <LaurelIcon />
+              <span>HISTÓRICO</span>
+              <LaurelIcon />
             </div>
           )}
           <div className="fu-card__info">

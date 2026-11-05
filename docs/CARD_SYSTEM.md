@@ -144,3 +144,11 @@ fichajes y no son datos oficiales.
 Todas se pueden consultar en la pestaña **Colecciones** (eventos por equipo y
 línea, Iconos, Mundial 2010 y grandes temporadas), con el progreso de la
 colección del usuario.
+
+## Históricos
+Retirados con etapas memorables que no son Iconos (Sturridge '14, Michu '13, Grafite '09, Luca Toni '06, el Leicester '16, Grecia '04…). Comparten categoría con los Iconos: ribete interno bronce y sello "HISTÓRICO" sobre el diseño de su versión (temporada u once especial).
+
+## Nuevos onces especiales
+- Equipo de la Temporada Premier League 13/14 (diseño TOTS de la Premier).
+- Once Ideal Mundial 2014 (verde y oro), Once Ideal Eurocopa 2008 y 2004 (azul y plata).
+- En Forma (Equipo de la Semana): negro y plata.

@@ -296,6 +296,10 @@
     0 40px 90px -30px rgba(0, 0, 0, 0.95);
   animation: rise-in var(--dur-slow) var(--ease-out);
 }
+/* En un contenedor con scroll, los hijos no deben encogerse (el botón desaparecería). */
+.summary__card > * {
+  flex-shrink: 0;
+}
 .summary__score {
   width: 100%;
   display: grid;
@@ -985,4 +989,147 @@
   .motm .fu-card {
     display: none;
   }
+}
+
+/* ───────── Lo mejor del partido (crónica narrada) ───────── */
+.story {
+  width: 100%;
+  display: grid;
+  gap: 10px;
+}
+.story__headline {
+  margin: 0;
+  font-size: 22px;
+  text-align: center;
+  background: linear-gradient(180deg, #fff, #f3d99b);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.story__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.story__item {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.035);
+  border-left: 3px solid rgba(255, 255, 255, 0.18);
+  opacity: 0;
+  animation: story-in 520ms var(--ease-out) forwards;
+  animation-delay: calc(var(--i) * 260ms + 200ms);
+}
+.story__item[data-side='home'] {
+  border-left-color: #f3d99b;
+}
+.story__item[data-side='away'] {
+  border-left-color: #8fb3ff;
+}
+.story__item[data-icon='wonder'],
+.story__item[data-icon='hattrick'],
+.story__item[data-icon='comeback'],
+.story__item[data-icon='late'] {
+  background: linear-gradient(90deg, rgba(243, 217, 155, 0.14), rgba(255, 255, 255, 0.02));
+}
+.story__icon {
+  font-size: 22px;
+  line-height: 1.2;
+  text-align: center;
+}
+.story__item b {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--text-dim, #c9c9c9);
+}
+.story__item p {
+  margin: 2px 0 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+@keyframes story-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .story__item {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* ───────── Clima sobre el campo ───────── */
+.match__weather {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+}
+.match__weather[data-w='rain']::before,
+.match__weather[data-w='snow']::before {
+  content: '';
+  position: absolute;
+  inset: -150px 0 0 0;
+  will-change: transform;
+}
+.match__weather[data-w='rain']::before {
+  background-image:
+    radial-gradient(0.8px 9px at 10px 20px, rgba(205, 225, 255, 0.55), transparent),
+    radial-gradient(0.8px 8px at 34px 70px, rgba(205, 225, 255, 0.45), transparent),
+    radial-gradient(0.8px 10px at 52px 120px, rgba(205, 225, 255, 0.5), transparent),
+    radial-gradient(0.8px 7px at 22px 135px, rgba(205, 225, 255, 0.4), transparent);
+  background-size: 61px 150px;
+  animation: rain-fall 0.45s linear infinite;
+}
+.match__weather[data-w='rain'] {
+  background: linear-gradient(180deg, rgba(30, 45, 70, 0.28), rgba(20, 30, 50, 0.12));
+}
+.match__weather[data-w='snow']::before {
+  background-image:
+    radial-gradient(2px 2px at 20px 30px, rgba(255, 255, 255, 0.85), transparent),
+    radial-gradient(2.5px 2.5px at 80px 70px, rgba(255, 255, 255, 0.75), transparent),
+    radial-gradient(1.8px 1.8px at 140px 20px, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(2px 2px at 60px 120px, rgba(255, 255, 255, 0.7), transparent);
+  background-size: 170px 150px;
+  animation: snow-fall 5s linear infinite;
+}
+.match__weather[data-w='snow'] {
+  background: rgba(220, 235, 255, 0.08);
+}
+.match__weather[data-w='night'] {
+  background: radial-gradient(120% 90% at 50% 50%, transparent 40%, rgba(5, 8, 20, 0.5));
+}
+.match__weather[data-w='heat'] {
+  background: linear-gradient(180deg, rgba(255, 170, 60, 0.12), transparent 60%);
+}
+@keyframes rain-fall {
+  to {
+    transform: translateY(150px);
+  }
+}
+@keyframes snow-fall {
+  to {
+    transform: translateY(150px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .match__weather::before {
+    animation: none !important;
+  }
+}
+.scoreboard__ctx {
+  opacity: 0.8;
 }

@@ -91,6 +91,8 @@ export const NATIONS: Nation[] = [
   { code: 'ua', name: 'Ucrania', cardName: 'UCRANIA', confederation: 'UEFA' },
   { code: 've', name: 'Venezuela', cardName: 'VENEZUELA', confederation: 'CONMEBOL' },
   { code: 'xk', name: 'Kosovo', cardName: 'KOSOVO', confederation: 'UEFA' },
+  { code: 'cr', name: 'Costa Rica', cardName: 'COSTA RICA', confederation: 'CONCACAF' },
+  { code: 'bg', name: 'Bulgaria', cardName: 'BULGARIA', confederation: 'UEFA' },
   { code: 'zm', name: 'Zambia', cardName: 'ZAMBIA', confederation: 'CAF' },
 ];
 
@@ -109,6 +111,8 @@ export const LEAGUES: League[] = [
   { id: 'tur-super', name: 'Süper Lig', shortName: 'SÜPER LIG', nationCode: 'tr', apiFootballId: 203 },
   { id: 'mex-ligamx', name: 'Liga MX', shortName: 'LIGA MX', nationCode: 'mx', apiFootballId: 262 },
   { id: 'sco-prem', name: 'Scottish Premiership', shortName: 'SPFL', nationCode: 'gb-sct', apiFootballId: 179 },
+  { id: 'rus-premier', name: 'Liga Premier rusa', shortName: 'RPL', nationCode: 'ru', apiFootballId: 235 },
+  { id: 'gre-super', name: 'Superliga griega', shortName: 'SUPERLIGA', nationCode: 'gr', apiFootballId: 197 },
   { id: 'hun-nb1', name: 'Liga húngara (histórica)', shortName: 'NB I', nationCode: 'hu', apiFootballId: null },
 ];
 
@@ -148,6 +152,16 @@ export const CLUBS: Club[] = [
   c('inter-miami', 'Inter Miami CF', 'INTER MIAMI', 'usa-mls', 'us', '#f7b5cd', '#231f20', 9568, { theSportsDbName: 'Inter Miami' }),
   c('al-nassr', 'Al Nassr FC', 'AL NASSR', 'ksa-pro', 'sa', '#fcd116', '#1f3f99', 2939, { theSportsDbName: 'Al-Nassr' }),
   c('al-hilal', 'Al Hilal SFC', 'AL HILAL', 'ksa-pro', 'sa', '#1450a0', '#f5f5f5', 2932, { theSportsDbName: 'Al-Hilal' }),
+  // Clubes que sólo aparecen en cartas de temporadas pasadas (Históricos y onces especiales)
+  c('swansea', 'Swansea City', 'SWANSEA', 'eng-premier', 'gb-wls', '#f5f5f5', '#111111', 76, { theSportsDbName: 'Swansea' }),
+  c('leicester', 'Leicester City', 'LEICESTER', 'eng-premier', 'gb-eng', '#003090', '#fdbe11', 46, { theSportsDbName: 'Leicester' }),
+  c('southampton', 'Southampton FC', 'SOUTHAMPTON', 'eng-premier', 'gb-eng', '#d71920', '#f5f5f5', 41, { theSportsDbName: 'Southampton' }),
+  c('deportivo', 'RC Deportivo', 'DEPORTIVO', 'esp-laliga', 'es', '#1b5faa', '#f5f5f5', null, { theSportsDbName: 'Deportivo La Coruna' }),
+  c('bordeaux', 'Girondins de Bordeaux', 'BORDEAUX', 'fra-ligue-1', 'fr', '#0b1f45', '#f5f5f5', null, { theSportsDbName: 'Bordeaux' }),
+  c('zenit', 'Zenit San Petersburgo', 'ZENIT', 'rus-premier', 'ru', '#0f7dc2', '#f5f5f5', null, { theSportsDbName: 'Zenit St Petersburg' }),
+  c('spartak', 'Spartak de Moscú', 'SPARTAK', 'rus-premier', 'ru', '#d71920', '#f5f5f5', null, { theSportsDbName: 'Spartak Moscow' }),
+  c('panathinaikos', 'Panathinaikos', 'PANATHINAIKOS', 'gre-super', 'gr', '#0b7a3b', '#f5f5f5', null, { theSportsDbName: 'Panathinaikos' }),
+  c('aek', 'AEK Atenas', 'AEK', 'gre-super', 'gr', '#f6d417', '#111111', null, { theSportsDbName: 'AEK Athens' }),
   c('honved', 'Budapest Honvéd', 'HONVÉD', 'hun-nb1', 'hu', '#d71920', '#111111', null, { historical: true, theSportsDbName: 'Honved' }),
 ];
 

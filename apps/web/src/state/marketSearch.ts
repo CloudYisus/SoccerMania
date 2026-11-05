@@ -7,7 +7,7 @@ import { allVersions, catalog } from '../data/catalog';
  * usuario busca con filtros y aparecen las ofertas que vendedores IA tienen
  * publicadas en ese momento para esas cartas.
  */
-export type CardTypeFilter = 'all' | 'base' | 'season' | 'icon' | 'toty' | 'tots' | 'promesas' | 'tormenta' | 'gala';
+export type CardTypeFilter = 'all' | 'base' | 'season' | 'icon' | 'hero' | 'totw' | 'toty' | 'tots' | 'promesas' | 'tormenta' | 'gala' | 'mundial' | 'euro';
 
 export interface SearchFilters {
   type: CardTypeFilter;
@@ -36,7 +36,8 @@ export const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀
 export function cardValue(v: PlayerVersion): number {
   const player = catalog.players.get(v.playerId)!;
   const ev = v.event ? catalog.events.get(v.event) : undefined;
-  const mult = ev?.kind === 'toty' ? 1.8 : ev?.kind === 'tots' ? 1.6 : ev?.kind === 'tormenta' || ev?.kind === 'gala' ? 1.5 : ev ? 1.35 : player.icon ? 1.5 : versionType(v) === 'season' ? 1.15 : 1;
+  const mult =
+    ev?.kind === 'toty' ? 1.8 : ev?.kind === 'tots' ? 1.6 : ev?.kind === 'tormenta' || ev?.kind === 'gala' || ev?.kind === 'mundial' ? 1.5 : ev?.kind === 'totw' ? 1.3 : ev ? 1.35 : player.icon ? 1.5 : player.hero ? 1.3 : versionType(v) === 'season' ? 1.15 : 1;
   return roundPrice(marketValue(v.rating) * mult);
 }
 
@@ -49,16 +50,22 @@ export function matches(v: PlayerVersion, f: SearchFilters): boolean {
       if (versionType(v) !== 'base' || player.icon) return false;
       break;
     case 'season':
-      if (versionType(v) !== 'season' || player.icon) return false;
+      if (versionType(v) !== 'season' || player.icon || player.hero) return false;
       break;
     case 'icon':
       if (!player.icon) return false;
+      break;
+    case 'hero':
+      if (!player.hero) return false;
       break;
     case 'toty':
     case 'tots':
     case 'promesas':
     case 'tormenta':
     case 'gala':
+    case 'mundial':
+    case 'euro':
+    case 'totw':
       if (ev?.kind !== f.type) return false;
       break;
   }
@@ -79,8 +86,9 @@ export function matches(v: PlayerVersion, f: SearchFilters): boolean {
 }
 
 /** Ejecuta una búsqueda: ofertas disponibles ahora mismo para las cartas que encajan. */
-export function searchMarket(f: SearchFilters, seed: number, now = Date.now()) {
-  const found = allVersions.filter((v) => matches(v, f));
+export function searchMarket(f: SearchFilters, seed: number, now = Date.now(), extra: readonly PlayerVersion[] = []) {
+  // `extra`: cartas En Forma de jugadores que han estado en el Equipo de la Semana.
+  const found = [...allVersions, ...extra].filter((v) => matches(v, f));
   const rng = createRng(seed);
   const listings: SearchListing[] = [];
   for (const v of found) {

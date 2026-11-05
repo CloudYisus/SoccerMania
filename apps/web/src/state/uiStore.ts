@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { TeamBuild } from './teams';
+import type { MatchContext } from './league';
 
 export type Tab = 'home' | 'squad' | 'club' | 'market' | 'packs' | 'compete' | 'collections';
 export const TABS: { id: Tab; label: string }[] = [
@@ -25,6 +26,8 @@ export interface MatchRequest {
   opponent: TeamBuild;
   difficulty: number;
   title: string;
+  /** Ambientación y modificadores de una jornada de liga. */
+  context?: MatchContext;
 }
 
 interface UiState {

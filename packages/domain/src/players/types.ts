@@ -52,6 +52,11 @@ export interface Player {
    * la versión: todas sus cartas lo muestran y aplican la química de Icono.
    */
   icon: boolean;
+  /**
+   * Histórico: futbolista retirado con etapas memorables que no llega a Icono.
+   * Comparte categoría con los Iconos (sello "HISTÓRICO" en todas sus cartas).
+   */
+  hero?: boolean;
   /** ID del jugador en API-Football (fotografía oficial del proveedor), si existe. */
   apiFootballId?: number | null;
 }

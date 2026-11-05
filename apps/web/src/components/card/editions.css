@@ -326,3 +326,91 @@
   text-shadow: none;
   filter: drop-shadow(0 0.06em 0.1em rgba(0, 0, 0, 0.85));
 }
+
+/* ═════════════ HISTÓRICOS ═════════════
+   Misma categoría que los Iconos: ribete interno BRONCE + sello con laureles,
+   sobre el diseño de su versión (temporada o equipo especial). */
+.fu-card[data-hero='true'] {
+  --ft: 0.98em;
+}
+.fu-card[data-hero='true'] .fu-card__body {
+  box-shadow:
+    0 0 0 0.07em rgba(0, 0, 0, 0.85),
+    0 0 0 0.34em #c98a4b,
+    0 0 0 0.41em rgba(40, 20, 5, 0.6),
+    0 0 0.7em 0.36em rgba(220, 150, 80, 0.45);
+}
+.fu-card__icon--hero {
+  color: #2b1606;
+  background: linear-gradient(180deg, #ffe6c7, #d9995a 60%, #8f5523);
+  box-shadow:
+    0 0 0.9em rgba(230, 150, 80, 0.55),
+    0 0.14em 0.35em rgba(0, 0, 0, 0.5),
+    inset 0 -0.06em 0 rgba(90, 45, 10, 0.6);
+}
+.fu-card__icon--hero svg {
+  color: #6b3a12;
+}
+.fu-card[data-hero='true'] .fu-card__name {
+  background: linear-gradient(180deg, #ffffff 0%, #ffe9cf 45%, #e0a868 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0.06em 0.1em rgba(0, 0, 0, 0.75));
+}
+
+/* ═════════════ EN FORMA (Equipo de la Semana) ═════════════ */
+.fu-card[data-event='totw'] .fu-card__tint {
+  mix-blend-mode: luminosity;
+  opacity: 0.9;
+}
+.fu-card[data-event='totw'] .fu-card__flag {
+  filter: grayscale(0.85) contrast(1.1) brightness(0.55);
+}
+.fu-card[data-event='totw'] .fu-card__panel {
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.75)),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0 0.08em, transparent 0.08em 0.5em);
+}
+.fu-card[data-event='totw'] .fu-card__name {
+  background: linear-gradient(180deg, #ffffff, #e8e8e8 55%, #9a9a9a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0.06em 0.12em rgba(0, 0, 0, 0.95));
+}
+.fu-card[data-event='totw'] .fu-card__plaque--event {
+  background: linear-gradient(180deg, #1a1a1a, #000);
+  color: #fff;
+  box-shadow: inset 0 0 0 0.06em rgba(255, 255, 255, 0.6);
+}
+
+/* ═════════════ ONCE IDEAL · MUNDIAL / EUROCOPA ═════════════ */
+.fu-card[data-event='mundial'] .fu-card__panel {
+  background:
+    radial-gradient(90% 60% at 50% 0%, rgba(245, 196, 67, 0.28), transparent 70%),
+    repeating-conic-gradient(from 0deg at 50% 0%, rgba(255, 230, 128, 0.07) 0 6deg, transparent 6deg 12deg);
+}
+.fu-card[data-event='mundial'] .fu-card__name {
+  background: linear-gradient(180deg, #fffbe6, #ffe680 55%, #d6a84c);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0.06em 0.1em rgba(0, 0, 0, 0.85));
+}
+.fu-card[data-event='euro'] .fu-card__panel {
+  background:
+    radial-gradient(90% 60% at 50% 0%, rgba(150, 190, 255, 0.28), transparent 70%),
+    radial-gradient(circle at 50% 120%, rgba(255, 255, 255, 0.08), transparent 60%);
+}
+.fu-card[data-event='euro'] .fu-card__name {
+  background: linear-gradient(180deg, #ffffff, #dfe9ff 55%, #8fb0ea);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0.06em 0.1em rgba(0, 0, 0, 0.85));
+}

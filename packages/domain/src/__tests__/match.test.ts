@@ -195,3 +195,33 @@ describe('mejor jugador del partido', () => {
     expect(r[0].rating).toBe(Math.max(...r.map((x) => x.rating)));
   });
 });
+
+describe('crónica del partido', () => {
+  it('cuenta los goles con su contexto y titular', async () => {
+    const { matchStory } = await import('../match/story');
+    const { matchRatings } = await import('../match/ratings');
+    const home = syntheticTeam('h', 84);
+    const away = syntheticTeam('a', 78);
+    const e = new MatchEngine(home, away, 21);
+    e.simulateToEnd();
+    const s = e.getSnapshot();
+    const goals = e.events.filter((x) => x.type === 'goal');
+    expect(goals.every((g) => g.story !== undefined)).toBe(true);
+    const story = matchStory(e.events, { home, away }, s.score, matchRatings(e.events, { home, away }, s.score));
+    expect(story.headline.length).toBeGreaterThan(3);
+    expect(story.moments.length).toBeLessThanOrEqual(5);
+    if (goals.length) expect(story.moments.some((m) => m.title.includes('GOL') || m.icon === 'hattrick' || m.icon === 'comeback')).toBe(true);
+  });
+
+  it('las lesiones son poco frecuentes', () => {
+    let injuries = 0;
+    for (let seed = 0; seed < 40; seed++) {
+      const e = new MatchEngine(syntheticTeam('h', 80), syntheticTeam('a', 80), seed);
+      e.simulateToEnd();
+      const inj = e.events.filter((x) => x.type === 'injury');
+      for (const i of inj) expect(i.injuryMatches).toBeGreaterThanOrEqual(1);
+      injuries += inj.length;
+    }
+    expect(injuries / 40).toBeLessThan(0.35);
+  }, 30000);
+});

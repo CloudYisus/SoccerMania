@@ -88,3 +88,17 @@ más.
   clubes reales del nivel de la división.
 - **Partido rápido**: equipos mixtos, más un selector de liga para jugar contra
   cualquier club real.
+
+## Liga (modo Divisiones)
+- Temporada de 8 equipos a una vuelta (7 jornadas): clasificación, resultados del resto de la jornada (simulados), goleadores y forma.
+- Ascienden los 2 primeros, descienden los 2 últimos; el líder de División 1 es campeón. Bonus según posición.
+- Previa de cada jornada: estadio, local/visitante (+1 al local), clima con efectos (lluvia, calor, viento, nieve), aforo, lo que está en juego e informe del rival con su jugador a seguir.
+- Analista: recomienda un estilo para contrarrestar al rival y lo aplica con un clic.
+- Semana de preparación: entrenamiento (finalización, defensa, posesión, físico, recuperación) y rueda de prensa (confianza, respeto, presión, "es una final") que mueven la moral (−3…+3).
+- Enfermería: lesiones (poco frecuentes, 1–5 partidos) con tratamiento de pago; los lesionados no juegan y entra el mejor suplente de su línea.
+
+## Equipo de la Semana (En Forma)
+- Cada semana se simula una jornada de todas las ligas reales del juego (state/world.ts) con clasificaciones propias.
+- El once de la semana mezcla esos rendimientos con los de tus partidos (notas del motor). Máx. 2 por club y variedad entre semanas.
+- Si un jugador tuyo entra, juega su versión En Forma (negra) el próximo partido. Las cartas En Forma de la semana salen en sobres y en el mercado; conseguidas, son permanentes. Sólo cartas base (no Iconos, Históricos ni temporadas pasadas).
+- La semana se cierra con cada jornada de Liga o cada 3 partidos en otros modos.

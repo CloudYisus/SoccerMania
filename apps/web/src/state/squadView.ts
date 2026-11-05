@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import {
+  POSITION_LINE,
   calculateChemistry,
   getFormation,
   teamRating,
@@ -37,9 +38,10 @@ export function toChemPlayer(r: ResolvedCard): ChemPlayer {
 }
 
 /** Calcula la vista completa de una plantilla (química real, rating, etc.). */
-export function computeSquadView(squad: Squad, cards: Record<string, PlayerCard>): SquadView {
+export function computeSquadView(squad: Squad, cards: Record<string, PlayerCard>, inForm: Record<string, string> = {}): SquadView {
   const formation = getFormation(squad.formationId);
-  const res = (id: string | null) => (id && cards[id] ? resolve(cards[id]) : null);
+  // Las cartas En Forma juegan su versión mejorada (sólo el próximo partido).
+  const res = (id: string | null) => (id && cards[id] ? resolve(inForm[id] ? { ...cards[id], versionId: inForm[id] } : cards[id]) : null);
   const starters = squad.starters.map(res);
   const bench = squad.bench.map(res);
   const manager = managerById(squad.managerId);
@@ -55,5 +57,40 @@ export function computeSquadView(squad: Squad, cards: Record<string, PlayerCard>
 export function useSquadView(): SquadView {
   const squad = useGame((s) => s.squad);
   const cards = useGame((s) => s.cards);
-  return useMemo(() => computeSquadView(squad, cards), [squad, cards]);
+  const inForm = useGame((s) => s.inForm);
+  return useMemo(() => computeSquadView(squad, cards, inForm), [squad, cards, inForm]);
+}
+
+/**
+ * Once del día de partido: los titulares lesionados se sustituyen por el mejor
+ * suplente disponible de su misma línea (o, si no hay, por el mejor del club).
+ */
+export function matchdaySquad(squad: Squad, cards: Record<string, PlayerCard>, injuries: Record<string, number>, listed: Set<string> = new Set()) {
+  const replaced: { out: string; in: string }[] = [];
+  const formation = getFormation(squad.formationId);
+  const used = new Set([...squad.starters, ...squad.bench].filter(Boolean) as string[]);
+  const starters = [...squad.starters];
+  const bench = [...squad.bench];
+  const playerOf = (id: string) => resolve(cards[id]).player.id;
+  const onPitch = () => new Set(starters.filter(Boolean).map((id) => playerOf(id!)));
+  starters.forEach((id, i) => {
+    if (!id || !injuries[id]) return;
+    const line = POSITION_LINE[formation.slots[i].position];
+    const taken = onPitch();
+    const fits = (cid: string) => {
+      if (injuries[cid] || listed.has(cid) || !cards[cid] || taken.has(playerOf(cid))) return false;
+      const r = resolve(cards[cid]);
+      return POSITION_LINE[r.position] === line && (line === 'goalkeeper') === (r.position === 'GK');
+    };
+    const rating = (cid: string) => resolve(cards[cid]).version.rating;
+    const fromBench = bench.filter((b): b is string => !!b && fits(b)).sort((a, b) => rating(b) - rating(a))[0];
+    const fromClub = Object.keys(cards).filter((c) => !used.has(c) && fits(c)).sort((a, b) => rating(b) - rating(a))[0];
+    const pick = fromBench ?? fromClub;
+    if (!pick) return;
+    starters[i] = pick;
+    if (fromBench) bench[bench.indexOf(pick)] = id;
+    used.add(pick);
+    replaced.push({ out: id, in: pick });
+  });
+  return { squad: { ...squad, starters, bench }, replaced };
 }

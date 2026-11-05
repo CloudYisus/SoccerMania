@@ -6,7 +6,8 @@ import { Icon } from '../components/ui/icons';
 import { Coins, Meter } from '../components/ui/ui';
 import { DEMO_DATA_NOTICE, version } from '../data/catalog';
 import { CHALLENGES } from '../state/challenges';
-import { DIVISION_SEASON_GAMES, PROMOTION_POINTS, useGame } from '../state/gameStore';
+import { useGame } from '../state/gameStore';
+import { LEAGUE_ROUNDS, LEAGUE_TEAMS, leagueTable, USER_TEAM } from '../state/league';
 import { useSquadView } from '../state/squadView';
 import { useUi, type Tab } from '../state/uiStore';
 import { PackArt } from './packs/PackArt';
@@ -81,6 +82,7 @@ function MiniPitch() {
 export function HomeScreen() {
   const view = useSquadView();
   const division = useGame((s) => s.division);
+  const leaguePos = division.season && division.season.round > 0 ? leagueTable(division.season).findIndex((r) => r.id === USER_TEAM) + 1 : 0;
   const cards = useGame((s) => s.cards);
   const welcomeClaimed = useGame((s) => s.welcomeClaimed);
   const myListings = useGame((s) => s.myListings);
@@ -154,15 +156,15 @@ export function HomeScreen() {
           </div>
         </Tile>
 
-        <Tile to="compete" intent="divisions" className="tile--division" eyebrow="Divisiones" title={`División ${division.level}`} cta="Jugar">
+        <Tile to="compete" intent="divisions" className="tile--division" eyebrow="Liga" title={`División ${division.level}`} cta="Jugar">
           <div className="tile__progress">
             <div className="tile__progress-row t-ui">
               <span>
-                {division.points} pts · {division.played}/{DIVISION_SEASON_GAMES} partidos
+                {division.points} pts · Jornada {Math.min(division.played + 1, LEAGUE_ROUNDS)}/{LEAGUE_ROUNDS}
               </span>
-              <span className="muted">Ascenso {PROMOTION_POINTS} pts</span>
+              <span className="muted">{leaguePos ? `${leaguePos}º de ${LEAGUE_TEAMS}` : 'Ascienden 2'}</span>
             </div>
-            <Meter value={division.points} max={PROMOTION_POINTS} tone="green" label="Puntos para ascender" />
+            <Meter value={division.played} max={LEAGUE_ROUNDS} tone="green" label="Jornadas disputadas" />
           </div>
           <div className="tile__division-crest" aria-hidden>
             <span className="t-display">{division.level}</span>

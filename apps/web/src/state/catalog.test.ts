@@ -19,6 +19,7 @@ describe('catálogo ampliado', () => {
 
   it('cada evento de Equipo del Año tiene 15 cartas especiales', () => {
     for (const ev of catalog.events.values()) {
+      if (ev.kind === 'totw') continue;
       const n = allVersions.filter((v) => v.event === ev.id).length;
       if (ev.kind === 'toty') expect(n, ev.id).toBe(15);
       else expect(n).toBeGreaterThan(5);

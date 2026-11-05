@@ -108,11 +108,15 @@ const TYPE_OPTIONS: { id: CardTypeFilter; label: string }[] = [
   { id: 'base', label: 'Temporada actual' },
   { id: 'season', label: 'Temporadas pasadas' },
   { id: 'icon', label: 'Iconos' },
+  { id: 'hero', label: 'Históricos' },
+  { id: 'totw', label: 'En Forma' },
   { id: 'toty', label: 'Equipo del Año' },
   { id: 'tots', label: 'Equipo de la Temporada' },
   { id: 'tormenta', label: 'Tormenta' },
   { id: 'gala', label: 'Noches de Gala' },
   { id: 'promesas', label: 'Promesas' },
+  { id: 'mundial', label: 'Once Ideal Mundial' },
+  { id: 'euro', label: 'Once Ideal Eurocopa' },
 ];
 const POSITION_OPTIONS = [
   { id: '', label: 'Cualquiera' },
@@ -149,7 +153,11 @@ function MarketSearch({ now }: { now: number }) {
   const run = () => {
     const next = seed + 1;
     setSeed(next);
-    setResults(searchMarket(f, next));
+    // Las cartas En Forma sólo circulan si su jugador ha estado en un Equipo de la Semana.
+    const w = useGame.getState().world;
+    const ids = [...new Set([...(w?.totw ?? []).map((e) => e.versionId), ...(w?.pastTotw ?? [])])];
+    const extra = ids.map((id) => catalog.versions.get(`${id}-if`)).filter((v): v is NonNullable<typeof v> => !!v);
+    setResults(searchMarket(f, next, Date.now(), extra));
   };
   const reset = () => {
     setF(EMPTY_FILTERS);

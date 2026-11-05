@@ -3,6 +3,7 @@ import { createRng } from '@fu/shared';
 import {
   INSTRUCTIONS,
   matchRatings,
+  matchStory,
   instructionsFor,
   MatchEngine,
   matchReward,
@@ -20,17 +21,20 @@ import {
   type DecisionOption,
   type Likelihood,
   type Level,
+  type MatchAttributes,
+  type StoryMoment,
   PLAY_STYLES,
 } from '@fu/domain';
 import { createMatchView, type MatchView, type PlayerToken } from '@fu/match-renderer';
 import { bundledFlagUrl } from '../../assets/assets';
-import { getEdition } from '../../components/card/editions';
-import { version as resolveVersion } from '../../data/catalog';
+import { cardTheme } from '../../components/card/editions';
+import { catalog, version as resolveVersion } from '../../data/catalog';
 import { Icon } from '../../components/ui/icons';
 import { PlayerCard } from '../../components/card/PlayerCard';
 import { Button, Coins, Segmented } from '../../components/ui/ui';
 import { useGame } from '../../state/gameStore';
-import { computeSquadView } from '../../state/squadView';
+import { computeSquadView, matchdaySquad } from '../../state/squadView';
+import { WEATHER } from '../../state/league';
 import { aiToMatchSetup, userToMatchSetup } from '../../state/teams';
 import { cupPlayerName, reportFromEvents, USER_ID } from '../../state/cup';
 import { useUi } from '../../state/uiStore';
@@ -126,9 +130,14 @@ export default function MatchScreen() {
   // Configuración congelada al empezar el partido.
   const { home, away, engine, kits } = useMemo(() => {
     const g = useGame.getState();
-    const view = computeSquadView(g.squad, g.cards);
-    const home = userToMatchSetup(view, g.squad.name, g.squad.tactics, g.squad.instructions);
-    const away = aiToMatchSetup(req.opponent);
+    // Los lesionados se quedan fuera: entra el mejor suplente de su línea.
+    const listed = new Set(g.myListings.filter((l) => l.status === 'active').map((l) => l.cardId));
+    const { squad, replaced } = matchdaySquad(g.squad, g.cards, g.injuries, listed);
+    const view = computeSquadView(squad, g.cards, g.inForm);
+    const home = boosted(userToMatchSetup(view, g.squad.name, g.squad.tactics, g.squad.instructions), req.context?.userBoost);
+    const away = boosted(aiToMatchSetup(req.opponent), req.context?.rivalBoost);
+    const notes = replaced.map((r) => `${resolveVersion(g.cards[r.out].versionId).player.knownAs} está lesionado: juega ${resolveVersion(g.cards[r.in].versionId).player.knownAs}`);
+    if (notes.length) setTimeout(() => notes.forEach((n, i) => setTimeout(() => useUi.getState().toast('info', n), i * 500)), 600);
     const engine = new MatchEngine(home, away, (Date.now() ^ 0x5f3759df) >>> 0);
     engine.setDecisionMode('home', loadFrequency());
     return { home, away, engine, kits: resolveKits(home, away) };
@@ -229,7 +238,10 @@ export default function MatchScreen() {
         short: r.player.knownAs.length > 11 ? words[words.length - 1] : r.player.knownAs,
         flagImage: flagImage(r.nation.code),
         flagKey: r.nation.code,
-        edition: getEdition(r.version.year).accent,
+        edition: (() => {
+          const ev = r.version.event ? catalog.events.get(r.version.event) : undefined;
+          return cardTheme(r.version.year, ev?.kind, ev?.leagueId).accent;
+        })(),
         icon: r.player.icon,
         rating: r.version.rating,
       };
@@ -399,10 +411,16 @@ export default function MatchScreen() {
 
   const reward = finished ? matchReward(snap.score.home, snap.score.away, req.difficulty) : null;
   // Mejor jugador del partido (de cualquiera de los dos equipos).
-  const motm = useMemo(
-    () => (finished ? matchRatings(engine.events, { home, away }, snap.score)[0] : undefined),
+  const ratings = useMemo(
+    () => (finished ? matchRatings(engine.events, { home, away }, snap.score) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [finished],
+  );
+  const motm = ratings[0];
+  const story = useMemo(
+    () => (finished ? matchStory(engine.events, { home, away }, snap.score, ratings) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [finished, ratings],
   );
 
   const close = () => {
@@ -411,7 +429,18 @@ export default function MatchScreen() {
         req.mode === 'cup'
           ? reportFromEvents(engine.events, { home: { teamId: USER_ID, setup: home }, away: { teamId: req.opponent.id, setup: away } }, snap.score, cupPlayerName)
           : undefined;
-      const r = useGame.getState().recordMatch({
+      const g = useGame.getState();
+      const perf = ratings
+        .filter((x) => x.side === 'home' && g.cards[x.id])
+        .map((x) => ({ cardId: x.id, versionId: g.cards[x.id].versionId, score: x.rating, goals: x.goals, assists: x.assists }));
+      const newInjuries = engine.events
+        .filter((e) => e.type === 'injury' && e.side === 'home' && e.playerId && g.cards[e.playerId])
+        .map((e) => ({ cardId: e.playerId!, matches: e.injuryMatches ?? 1 }));
+      const scorers = engine.events.filter((e) => e.type === 'goal' && e.side === 'home').map((e) => home.players.find((p) => p.id === e.playerId)?.name ?? '—');
+      const r = g.recordMatch({
+        perf,
+        newInjuries,
+        scorers,
         cupReport,
         tournamentId: req.tournamentId,
         mode: req.mode,
@@ -423,6 +452,10 @@ export default function MatchScreen() {
       });
       toast('reward', `+${r.coins.toLocaleString('es-ES')} monedas · +${r.xp} XP${r.levelsGained ? ' · ¡Subes de nivel!' : ''}`);
       if (r.note) setTimeout(() => toast('info', r.note!), 400);
+      if (r.totw?.length) {
+        const names = r.totw.map((e) => catalog.players.get(catalog.versions.get(e.versionId)!.playerId)!.knownAs).join(', ');
+        setTimeout(() => toast('reward', `¡${names} ${r.totw!.length > 1 ? 'entran' : 'entra'} en el Equipo de la Semana! Jugará${r.totw!.length > 1 ? 'n' : ''} el próximo partido con su versión En Forma.`), 900);
+      } else if (r.totwWeek) setTimeout(() => toast('info', `Nuevo Equipo de la Semana (semana ${r.totwWeek}) disponible en Colecciones.`), 900);
     }
     endMatch();
     go('compete', req.mode === 'division' ? 'divisions' : req.mode);
@@ -480,13 +513,22 @@ export default function MatchScreen() {
           <span className="t-display">{away.shortName}</span>
           <span className="scoreboard__kit" style={{ background: kits.away.primary }} />
         </div>
-        <div className="scoreboard__title t-ui">{req.title}</div>
+        <div className="scoreboard__title t-ui">
+          {req.title}
+          {req.context && (
+            <span className="scoreboard__ctx" title={req.context.notes.join(' · ')}>
+              {' · '}
+              {WEATHER[req.context.weather].icon} {WEATHER[req.context.weather].label} · {req.context.stadium} · {req.context.attendance}% de aforo
+            </span>
+          )}
+        </div>
       </header>
 
       <div className="match__layout">
         <div className="match__pitch">
           <div className="match__stage">
             <div className="match__canvas" ref={hostRef} />
+            {req.context && <div className="match__weather" data-w={req.context.weather} aria-hidden />}
             {banners[0]?.highlight && (
               <HighlightBanner key={banners[0].id} event={banners[0]} kit={banners[0].side === 'away' ? kits.away.primary : kits.home.primary} />
             )}
@@ -653,6 +695,26 @@ export default function MatchScreen() {
                 Penaltis: {penalties.for} – {penalties.against} · {penalties.for > penalties.against ? 'Clasificado' : 'Eliminado'}
               </div>
             )}
+            {story && story.moments.length > 0 && (
+              <section className="story" aria-label="Lo mejor del partido">
+                <h3 className="story__headline t-display">{story.headline}</h3>
+                <ol className="story__list">
+                  {story.moments.map((m, i) => (
+                    <li key={i} className="story__item" data-side={m.side ?? 'none'} data-icon={m.icon} style={{ '--i': i } as React.CSSProperties}>
+                      <span className="story__icon" aria-hidden>
+                        {STORY_ICON[m.icon]}
+                      </span>
+                      <div>
+                        <b className="t-ui">
+                          {m.minute}' · {m.title}
+                        </b>
+                        <p>{m.text}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            )}
             {motm && (
               <div className="motm" data-mine={motm.side === 'home'}>
                 {motm.versionId && <PlayerCard versionId={motm.versionId} size="sm" />}
@@ -720,7 +782,34 @@ const HL_CATEGORY: Record<HighlightKind, { label: string; tone: 'attack' | 'setp
   bigsave: { label: 'Portero', tone: 'keeper' },
   woodwork: { label: 'Ocasión', tone: 'keeper' },
   card: { label: 'Árbitro', tone: 'card' },
+  injury: { label: 'Lesión', tone: 'card' },
 };
+
+const STORY_ICON: Record<StoryMoment['icon'], string> = {
+  goal: '⚽',
+  wonder: '🌟',
+  save: '🧤',
+  comeback: '🔥',
+  late: '⏱️',
+  hattrick: '🎩',
+  post: '🥅',
+  injury: '🚑',
+  penalty: '🎯',
+  wall: '🧱',
+};
+
+/** Aplica los modificadores de la jornada (clima, moral, entrenamiento…) a un equipo. */
+function boosted(t: MatchTeamSetup, delta?: Partial<MatchAttributes>): MatchTeamSetup {
+  if (!delta || !Object.keys(delta).length) return t;
+  return {
+    ...t,
+    players: t.players.map((p) => {
+      const a = { ...p.attributes };
+      for (const [k, v] of Object.entries(delta) as [keyof MatchAttributes, number][]) a[k] = Math.max(1, Math.min(99, a[k] + v));
+      return { ...p, attributes: a };
+    }),
+  };
+}
 
 /** Aviso breve de jugada destacada sobre la retransmisión. */
 function HighlightBanner({ event, kit }: { event: MatchEvent; kit: string }) {

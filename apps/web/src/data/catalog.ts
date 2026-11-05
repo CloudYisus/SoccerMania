@@ -4,7 +4,17 @@ import { resolveCard, resolveVersion, type PlayerCard, type ResolvedCard } from 
 export const catalog = demoCatalog;
 export { DEMO_DATA_NOTICE, MANAGERS, OPPONENTS, STARTER };
 
-export const allVersions = [...catalog.versions.values()];
+/** Versiones coleccionables "normales": las En Forma sólo circulan cuando su jugador está en el Equipo de la Semana. */
+export const allVersions = [...catalog.versions.values()].filter((v) => v.event !== 'totw');
+
+/** Versión En Forma de una carta base (si existe). */
+export function inFormOf(versionId: string) {
+  return catalog.versions.get(`${versionId}-if`);
+}
+/** Carta base de una versión En Forma. */
+export function baseOfInForm(versionId: string) {
+  return versionId.endsWith('-if') ? versionId.slice(0, -3) : versionId;
+}
 
 export function resolve(card: PlayerCard): ResolvedCard {
   return resolveCard(catalog, card);

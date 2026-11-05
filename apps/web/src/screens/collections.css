@@ -5,7 +5,7 @@
 }
 .coll-events {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 14px;
 }
 .coll-events__group {
@@ -109,4 +109,52 @@
   .coll-events {
     grid-template-columns: 1fr;
   }
+}
+
+/* Equipo de la Semana */
+.coll-team[data-kind='totw'] {
+  background:
+    radial-gradient(80% 60% at 50% 0%, rgba(255, 255, 255, 0.07), transparent 70%),
+    linear-gradient(180deg, #101010, #050505);
+}
+.totw-card {
+  position: relative;
+  max-width: 190px;
+  text-align: center;
+}
+.totw-card__score {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  z-index: 6;
+  min-width: 34px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0b0d11;
+  background: linear-gradient(180deg, #ffffff, #cfcfcf);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+.totw-card[data-user='true'] .totw-card__score {
+  background: var(--gold-metal);
+}
+.totw-results ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 4px 18px;
+}
+.totw-results li {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 8px;
+  font-size: 13px;
+  padding: 3px 0;
+  border-top: 1px solid var(--line);
+}
+.totw-results li span:last-child {
+  text-align: right;
 }

@@ -3,6 +3,7 @@ import { POSITION_LABELS, type LinkResult, type SlotRef } from '@fu/domain';
 import { PlayerCard } from '../../components/card/PlayerCard';
 import { ChemDots } from '../../components/ui/ui';
 import type { SquadView } from '../../state/squadView';
+import { useGame } from '../../state/gameStore';
 
 /** Medidas de carta sobre el campo, en % del lado del campo (cuadrado). */
 export const SLOT_W = 12.5;
@@ -51,6 +52,8 @@ export function Pitch({
   onDropTo: (ref: SlotRef, e: DragEvent) => void;
 }) {
   const focus = selected?.zone === 'starter' ? selected.index : null;
+  const injuries = useGame((s) => s.injuries);
+  const inForm = useGame((s) => s.inForm);
   return (
     <div className="pitch" data-formation={view.formation.id}>
       <div className="pitch__grass" aria-hidden>
@@ -96,6 +99,16 @@ export function Pitch({
               <button className="slot__empty" onClick={() => onSlot({ zone: 'starter', index: slot.index })} aria-label={`Posición ${POSITION_LABELS[slot.position]} vacía`}>
                 <span className="t-ui">+</span>
               </button>
+            )}
+            {r && injuries[r.card.id] && (
+              <span className="slot__badge slot__badge--injury t-ui" title={`Lesionado: ${injuries[r.card.id]} partido(s) de baja. Jugará el mejor suplente de su línea.`}>
+                🚑 {injuries[r.card.id]}
+              </span>
+            )}
+            {r && inForm[r.card.id] && (
+              <span className="slot__badge slot__badge--if t-ui" title="Equipo de la Semana: juega su versión En Forma el próximo partido">
+                EN FORMA
+              </span>
             )}
             <div className="slot__meta">
               <span className="slot__pos t-ui" data-fit={chem?.fit ?? 'none'}>

@@ -100,6 +100,26 @@ export interface BallFlight {
   kickerId: string;
   /** Decisión del usuario que originó el golpeo (para evaluar su resultado). */
   decisionId?: number;
+  /** Cómo se fraguó el disparo (para la crónica de los goles). */
+  story?: ShotStory;
+}
+
+/** Contexto de un disparo: alimenta el resumen narrado del partido. */
+export interface ShotStory {
+  /** Metros conducidos por el rematador desde que recibió el balón. */
+  carry: number;
+  /** Rivales superados en esa conducción. */
+  beaten: number;
+  /** Distancia a la portería en el golpeo. */
+  distance: number;
+  mode: ShotMode;
+  /** Golpeo elegido (vaselina, rosca, potente, volea…). */
+  style?: 'finesse' | 'power' | 'chip' | 'placed' | 'volley';
+  /** Tipo de pase previo (centro, pase al hueco…) si lo hubo. */
+  assist?: PassVariant;
+  xg: number;
+  /** Nació de una decisión del usuario. */
+  decision: boolean;
 }
 
 export interface BallState {
@@ -148,7 +168,8 @@ export type MatchEventType =
   | 'foul'
   | 'card'
   | 'highlight'
-  | 'decision';
+  | 'decision'
+  | 'injury';
 
 /** Jugadas que merecen la atención del espectador (aviso en la retransmisión). */
 export type HighlightKind =
@@ -165,7 +186,8 @@ export type HighlightKind =
   | 'freekick'
   | 'bigsave'
   | 'woodwork'
-  | 'card';
+  | 'card'
+  | 'injury';
 
 export interface MatchHighlight {
   kind: HighlightKind;
@@ -189,6 +211,10 @@ export interface MatchEvent {
   highlight?: MatchHighlight;
   /** Presente en el evento que resuelve una decisión del usuario. */
   decision?: DecisionResult;
+  /** Goles: cómo se fraguó la jugada. */
+  story?: ShotStory;
+  /** Lesiones: partidos que estará de baja. */
+  injuryMatches?: number;
 }
 
 // ───────────────────────────── Decisiones del usuario ─────────────────────────────

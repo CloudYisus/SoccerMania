@@ -59,7 +59,7 @@ export interface Club {
 export interface CardEvent {
   id: string;
   /** Familia de diseño: todas las cartas de una familia comparten estética. */
-  kind: 'toty' | 'promesas' | 'heroes' | 'tots' | 'tormenta' | 'gala';
+  kind: 'toty' | 'promesas' | 'heroes' | 'tots' | 'tormenta' | 'gala' | 'mundial' | 'euro' | 'totw';
   /** Liga del equipo de la temporada (eventos por liga). */
   leagueId?: string;
   name: string;

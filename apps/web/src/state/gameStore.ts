@@ -31,6 +31,8 @@ import {
 import { allVersions, catalog, STARTER } from '../data/catalog';
 import { applyResult, CUP_ROUNDS, createCup, cupPlayerName as cupName, emptyCup, normalizeCup, simulatePending, USER_ID, userFixture, type CupMatchReport, type CupState, type RivalMode } from './cup';
 import { tournamentById } from './tournaments';
+import { addUserPerf, closeWeek, emptyWorld, MATCHES_PER_WEEK, normalizeWorld, type TotwEntry, type WorldState } from './world';
+import { createSeason, playRound, type LeagueSeason, type PressId, type TrainingId } from './league';
 
 export interface AiListing {
   id: string;
@@ -68,7 +70,20 @@ export interface DivisionState {
   lastOutcome: 'promoted' | 'relegated' | 'stayed' | null;
   /** Rivales de la temporada: equipos mixtos o clubes reales. */
   rivals?: 'mix' | 'real';
+  /** Temporada de liga en curso (clasificación, calendario, moral…). */
+  season?: LeagueSeason;
 }
+
+/** Rendimiento de una carta tuya en un partido (para el Equipo de la Semana). */
+export interface CardPerf {
+  cardId: string;
+  versionId: string;
+  score: number;
+  goals: number;
+  assists: number;
+}
+
+export const TREATMENT_COST = 1500;
 
 export const DIVISION_SEASON_GAMES = 7;
 export const PROMOTION_POINTS = 13;
@@ -91,6 +106,12 @@ interface GameData {
   tournaments: Record<string, CupState>;
   challenges: Record<string, boolean>;
   history: MatchRecord[];
+  /** Mundo simulado y Equipo de la Semana. */
+  world: WorldState;
+  /** Cartas que jugarán su versión En Forma en el próximo partido (cardId → versión). */
+  inForm: Record<string, string>;
+  /** Lesiones: partidos que le quedan de baja a cada carta. */
+  injuries: Record<string, number>;
 }
 
 export interface ActionResult {
@@ -117,8 +138,17 @@ interface GameActions {
   buySearchListing(versionId: string, price: number): ActionResult;
   refreshMarket(force?: boolean): void;
   recordMatch(
-    r: Omit<MatchRecord, 'id' | 'at' | 'coins'> & { difficulty: number; cupReport?: CupMatchReport; tournamentId?: string },
-  ): { coins: number; xp: number; levelsGained: number; note?: string };
+    r: Omit<MatchRecord, 'id' | 'at' | 'coins'> & {
+      difficulty: number;
+      cupReport?: CupMatchReport;
+      tournamentId?: string;
+      perf?: CardPerf[];
+      newInjuries?: { cardId: string; matches: number }[];
+      scorers?: string[];
+    },
+  ): { coins: number; xp: number; levelsGained: number; note?: string; totw?: TotwEntry[]; totwWeek?: number };
+  setLeaguePlan(plan: { training?: TrainingId | null; press?: PressId | null }): void;
+  treatInjury(cardId: string): ActionResult;
   startTournament(defId: string, mode: RivalMode): ActionResult;
   setDivisionRivals(r: 'mix' | 'real'): ActionResult;
   claimChallenge(id: string, reward: number): ActionResult;
@@ -177,6 +207,9 @@ function initialData(): GameData {
     tournaments: {},
     challenges: {},
     history: [],
+    world: emptyWorld(),
+    inForm: {},
+    injuries: {},
   };
 }
 
@@ -246,7 +279,9 @@ export const useGame = create<GameState>()(
         if (s.coins < pack.price) return { ok: false, message: 'Monedas insuficientes.', cardIds: [] };
         const now = Date.now();
         const rng = createRng(hashString(`${packId}-${now}-${s.cardSeq}`));
-        const versions = openPack(rng, pack, allVersions);
+        // Las cartas En Forma del Equipo de la Semana vigente también salen en sobres.
+        const totw = normalizeWorld(s.world).totw.map((e) => catalog.versions.get(e.ifId)!).filter(Boolean);
+        const versions = openPack(rng, pack, [...allVersions, ...totw]);
         let seq = s.cardSeq;
         const cards = { ...s.cards };
         const ids = versions.map((v) => {
@@ -387,26 +422,34 @@ export const useGame = create<GameState>()(
             d.draws++;
             d.points += 1;
           } else d.losses++;
-          if (d.played >= DIVISION_SEASON_GAMES) {
-            let outcome: DivisionState['lastOutcome'] = 'stayed';
-            let level = d.level;
-            if (d.points >= PROMOTION_POINTS && level > 1) {
-              level--;
-              outcome = 'promoted';
-            } else if (d.points <= RELEGATION_POINTS && level < 10) {
-              level++;
-              outcome = 'relegated';
-            }
-            const seasonBonus = 2000 + (11 - d.level) * 600 + d.points * 150;
-            coins += seasonBonus;
-            note =
-              outcome === 'promoted'
-                ? `¡Ascenso a División ${level}! Bonus de temporada: ${seasonBonus.toLocaleString('es-ES')}`
-                : outcome === 'relegated'
-                  ? `Descenso a División ${level}. Bonus de temporada: ${seasonBonus.toLocaleString('es-ES')}`
-                  : `Permanencia en División ${level}. Bonus de temporada: ${seasonBonus.toLocaleString('es-ES')}`;
-            division = { level, played: 0, points: 0, wins: 0, draws: 0, losses: 0, best: Math.min(d.best, level), lastOutcome: outcome, rivals: d.rivals };
-          } else division = d;
+          const season = d.season && d.season.level === d.level ? d.season : createSeason(d.level, d.rivals ?? 'mix', 1, s.squad.name);
+          const out = playRound(season, r.goalsFor, r.goalsAgainst, r.scorers ?? [], s.squad.name);
+          if (out.pressCoins) coins += Math.round(reward.coins * out.pressCoins);
+          if (out.ended) {
+            const e = out.ended;
+            coins += e.bonus;
+            const label =
+              e.outcome === 'champion'
+                ? `¡Campeón de División 1!`
+                : e.outcome === 'promoted'
+                  ? `¡Ascenso a División ${e.level}!`
+                  : e.outcome === 'relegated'
+                    ? `Descenso a División ${e.level}`
+                    : `Permanencia en División ${e.level}`;
+            note = `${label} · Terminaste ${e.position}º · Bonus: ${e.bonus.toLocaleString('es-ES')}${e.topScorer ? ` · Pichichi: ${e.topScorer.name} (${e.topScorer.goals})` : ''}`;
+            division = {
+              level: e.level,
+              played: 0,
+              points: 0,
+              wins: 0,
+              draws: 0,
+              losses: 0,
+              best: Math.min(d.best, e.level),
+              lastOutcome: e.outcome === 'champion' ? 'stayed' : e.outcome,
+              rivals: d.rivals,
+              season: out.season,
+            };
+          } else division = { ...d, season: out.season };
         }
 
         const fx = r.mode === 'cup' && cup.status === 'running' ? userFixture(cup) : undefined;
@@ -435,6 +478,28 @@ export const useGame = create<GameState>()(
         const { progress, levelsGained } = addXp(s.progress, reward.xp);
         const cards = { ...s.cards };
         for (const id of s.squad.starters) if (id && cards[id]) cards[id] = registerGamePlayed(cards[id]);
+
+        // Lesiones: cada partido descuenta uno (dos con entrenamiento de recuperación).
+        const heal = r.mode === 'division' && s.division.season?.plan.training === 'recovery' ? 2 : 1;
+        const injuries: Record<string, number> = {};
+        for (const [id, n] of Object.entries(s.injuries)) if (n - heal > 0 && cards[id]) injuries[id] = n - heal;
+        for (const i of r.newInjuries ?? []) if (cards[i.cardId]) injuries[i.cardId] = Math.max(injuries[i.cardId] ?? 0, i.matches);
+
+        // En Forma: la versión mejorada dura un partido (el de los titulares que la usaron).
+        const inForm = { ...s.inForm };
+        for (const id of s.squad.starters) if (id) delete inForm[id];
+
+        // Equipo de la Semana: la semana se cierra con cada jornada de liga o cada 3 partidos.
+        let world = addUserPerf(normalizeWorld(s.world), r.perf ?? [], r.opponent, `${r.goalsFor}-${r.goalsAgainst}`);
+        let totw: TotwEntry[] | undefined;
+        let totwWeek: number | undefined;
+        if (r.mode === 'division' || world.matchesThisWeek >= MATCHES_PER_WEEK) {
+          const closed = closeWeek(world);
+          world = closed.world;
+          totwWeek = world.totwWeek;
+          totw = closed.qualified;
+          for (const q of closed.qualified) if (q.cardId && cards[q.cardId]) inForm[q.cardId] = q.ifId;
+        }
         const rec: MatchRecord = {
           id: `m${Date.now().toString(36)}`,
           mode: r.mode,
@@ -452,8 +517,30 @@ export const useGame = create<GameState>()(
           division,
           tournaments: r.mode === 'cup' ? { ...s.tournaments, [tId]: cup } : s.tournaments,
           history: [rec, ...s.history].slice(0, 30),
+          world,
+          inForm,
+          injuries,
         });
-        return { coins, xp: reward.xp, levelsGained, note };
+        return { coins, xp: reward.xp, levelsGained, note, totw, totwWeek };
+      },
+
+      setLeaguePlan(plan) {
+        const s = get();
+        const d = s.division;
+        const season = d.season && d.season.level === d.level ? d.season : createSeason(d.level, d.rivals ?? 'mix', 1, s.squad.name);
+        set({ division: { ...d, season: { ...season, plan: { ...season.plan, ...plan } } } });
+      },
+
+      treatInjury(cardId) {
+        const s = get();
+        const n = s.injuries[cardId];
+        if (!n) return { ok: false, message: 'Este jugador no está lesionado.' };
+        if (s.coins < TREATMENT_COST) return { ok: false, message: 'Monedas insuficientes para el tratamiento.' };
+        const injuries = { ...s.injuries };
+        if (n <= 1) delete injuries[cardId];
+        else injuries[cardId] = n - 1;
+        set({ coins: s.coins - TREATMENT_COST, injuries });
+        return { ok: true, message: n <= 1 ? 'Tratamiento completado: ¡recuperado!' : `Tratamiento completado: le quedan ${n - 1} partidos de baja.` };
       },
 
       startTournament(defId, mode) {
@@ -469,8 +556,8 @@ export const useGame = create<GameState>()(
 
       setDivisionRivals(rivals) {
         const s = get();
-        if (s.division.played > 0) return { ok: false, message: 'Podrás cambiar el tipo de rivales al empezar la próxima temporada.' };
-        set({ division: { ...s.division, rivals } });
+        if (s.division.played > 0 || (s.division.season?.round ?? 0) > 0) return { ok: false, message: 'Podrás cambiar el tipo de rivales al empezar la próxima temporada.' };
+        set({ division: { ...s.division, rivals, season: createSeason(s.division.level, rivals, s.division.season?.season ?? 1, s.squad.name) } });
         return { ok: true, message: rivals === 'real' ? 'Esta temporada te enfrentarás a clubes reales.' : 'Esta temporada te enfrentarás a equipos mixtos.' };
       },
 
@@ -490,8 +577,8 @@ export const useGame = create<GameState>()(
       version: 1,
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => {
-        const { saveVersion, coins, progress, cards, cardSeq, squad, welcomeClaimed, market, myListings, division, tournaments, challenges, history } = s;
-        return { saveVersion, coins, progress, cards, cardSeq, squad, welcomeClaimed, market, myListings, division, tournaments, challenges, history };
+        const { saveVersion, coins, progress, cards, cardSeq, squad, welcomeClaimed, market, myListings, division, tournaments, challenges, history, world, inForm, injuries } = s;
+        return { saveVersion, coins, progress, cards, cardSeq, squad, welcomeClaimed, market, myListings, division, tournaments, challenges, history, world, inForm, injuries };
       },
       // Descarta partidas guardadas que referencian versiones ya inexistentes en el catálogo.
       merge: (persisted, current) => {
@@ -502,7 +589,14 @@ export const useGame = create<GameState>()(
         const tournaments: Record<string, CupState> = {};
         for (const [id, t] of Object.entries(p.tournaments ?? {})) tournaments[id] = normalizeCup(t, id);
         if (legacy && !tournaments.ultimate) tournaments.ultimate = normalizeCup(legacy, 'ultimate');
-        return { ...current, ...p, tournaments };
+        const cardsOk = (m: Record<string, unknown> | undefined) => Object.fromEntries(Object.entries(m ?? {}).filter(([id]) => p.cards![id]));
+        const inForm = Object.fromEntries(Object.entries(cardsOk(p.inForm)).filter(([, v]) => catalog.versions.has(v as string))) as Record<string, string>;
+        // Temporada de liga de una versión anterior (sin calendario): se recrea.
+        const division =
+          p.division && (!p.division.season || !Array.isArray(p.division.season.fixtures))
+            ? { ...p.division, season: undefined, played: 0, points: 0, wins: 0, draws: 0, losses: 0 }
+            : p.division;
+        return { ...current, ...p, division: division ?? current.division, tournaments, world: normalizeWorld(p.world), inForm, injuries: cardsOk(p.injuries) as Record<string, number> };
       },
     },
   ),

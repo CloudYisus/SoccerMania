@@ -238,3 +238,7 @@ Cuenta goles, asistencias, disparos, paradas, entradas, intercepciones,
 regates, pases, decisiones acertadas, faltas, tarjetas, el resultado y las
 porterías a cero. La nota más alta es el mejor del partido, de cualquier
 equipo, y aparece en el resumen con su carta.
+
+## Lesiones y crónica narrada
+- Lesiones: probabilidad baja por falta recibida (doble en entradas duras), máx. 1 por equipo. El jugador sigue mermado y queda de baja 1–5 partidos.
+- Cada disparo guarda su historia (`ShotStory`: metros conducidos, rivales superados, distancia, golpeo, tipo de asistencia). `matchStory()` elige los 5 momentos más espectaculares (golazos, goles decisivos, remontadas, hat-tricks, penaltis parados, muros bajo palos) con un titular.

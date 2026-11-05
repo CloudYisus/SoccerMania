@@ -5,9 +5,10 @@ import { Icon } from '../components/ui/icons';
 import { Button, Coins, Meter, SectionHeader, Segmented } from '../components/ui/ui';
 import { CHALLENGES } from '../state/challenges';
 import { catalog } from '../data/catalog';
-import { CUP_ROUNDS, DIVISION_SEASON_GAMES, PROMOTION_POINTS, RELEGATION_POINTS, useGame } from '../state/gameStore';
+import { CUP_ROUNDS, useGame } from '../state/gameStore';
+import { LeagueView } from './LeagueView';
 import { useSquadView } from '../state/squadView';
-import { buildOpponent, clubTeam, divisionOpponent, QUICK_OPPONENTS, REAL_CLUBS, type TeamBuild } from '../state/teams';
+import { buildOpponent, clubTeam, QUICK_OPPONENTS, REAL_CLUBS, type TeamBuild } from '../state/teams';
 import { TOURNAMENTS, tournamentById } from '../state/tournaments';
 import { buildCupTeam, normalizeCup, teamOf, USER_ID, userFixture, type RivalMode } from '../state/cup';
 import { CupBracket, CupStats } from './CupView';
@@ -86,7 +87,6 @@ export function CompeteScreen() {
   const view = useSquadView();
   const startMatch = useUi((s) => s.startMatch);
   const go = useUi((s) => s.go);
-  const division = useGame((s) => s.division);
   const tournaments = useGame((s) => s.tournaments);
   const [tid, setTid] = useState<string>('ultimate');
   const tdef = tournamentById(tid);
@@ -106,7 +106,6 @@ export function CompeteScreen() {
   };
 
   const quickTeams = useMemo(() => QUICK_OPPONENTS.map(buildOpponent), []);
-  const divOpp = useMemo(() => divisionOpponent(division.level, division.played, division.rivals ?? 'mix'), [division.level, division.played, division.rivals]);
   const quickClubs = useMemo(
     () =>
       REAL_CLUBS.filter((c) => c.leagueId === qLeague)
@@ -125,14 +124,14 @@ export function CompeteScreen() {
 
   return (
     <div className="compete">
-      <SectionHeader eyebrow="Competir" title={{ quick: 'Partido rápido', divisions: 'Divisiones', cup: 'Torneos', challenges: 'Desafíos' }[mode]}>
+      <SectionHeader eyebrow="Competir" title={{ quick: 'Partido rápido', divisions: 'Liga', cup: 'Torneos', challenges: 'Desafíos' }[mode]}>
         <Segmented<Mode>
           label="Modo"
           value={mode}
           onChange={setMode}
           options={[
             { id: 'quick', label: 'Partido rápido' },
-            { id: 'divisions', label: 'Divisiones' },
+            { id: 'divisions', label: 'Liga' },
             { id: 'cup', label: 'Torneos' },
             { id: 'challenges', label: 'Desafíos' },
           ]}
@@ -201,81 +200,7 @@ export function CompeteScreen() {
         </>
       )}
 
-      {mode === 'divisions' && (
-        <div className="division">
-          <section className="division__status">
-            <div className="division__badge">
-              <span className="t-eyebrow">División</span>
-              <span className="division__num t-display">{division.level}</span>
-              <span className="muted small">Mejor: División {division.best}</span>
-            </div>
-            <div className="division__season">
-              <div className="division__row t-ui">
-                <span>Temporada</span>
-                <span>
-                  {division.played}/{DIVISION_SEASON_GAMES} partidos
-                </span>
-              </div>
-              <div className="division__games">
-                {Array.from({ length: DIVISION_SEASON_GAMES }, (_, i) => (
-                  <span key={i} data-played={i < division.played} />
-                ))}
-              </div>
-              <div className="division__record">
-                <div>
-                  <b className="t-num">{division.wins}</b>
-                  <span className="t-ui">V</span>
-                </div>
-                <div>
-                  <b className="t-num">{division.draws}</b>
-                  <span className="t-ui">E</span>
-                </div>
-                <div>
-                  <b className="t-num">{division.losses}</b>
-                  <span className="t-ui">D</span>
-                </div>
-                <div>
-                  <b className="t-num t-gold">{division.points}</b>
-                  <span className="t-ui">Puntos</span>
-                </div>
-              </div>
-              <div className="division__thresholds">
-                <Meter value={division.points} max={PROMOTION_POINTS} tone="green" label="Progreso hacia el ascenso" />
-                <div className="division__row small muted">
-                  <span>Descenso ≤ {RELEGATION_POINTS} pts</span>
-                  <span>Ascenso ≥ {PROMOTION_POINTS} pts</span>
-                </div>
-              </div>
-              {division.lastOutcome && (
-                <span className={`tag ${division.lastOutcome === 'promoted' ? 'tag--green' : division.lastOutcome === 'relegated' ? 'tag--red' : ''}`}>
-                  Última temporada: {{ promoted: 'Ascenso', relegated: 'Descenso', stayed: 'Permanencia' }[division.lastOutcome]}
-                </span>
-              )}
-            </div>
-          </section>
-          <div className="division__rivals panel">
-            <span className="t-ui muted">Rivales de la temporada</span>
-            <Segmented<'mix' | 'real'>
-              label="Rivales"
-              value={division.rivals ?? 'mix'}
-              onChange={(v) => feedback(useGame.getState().setDivisionRivals(v))}
-              options={[
-                { id: 'mix', label: 'Equipos mixtos' },
-                { id: 'real', label: 'Clubes reales' },
-              ]}
-            />
-            <span className="muted small">
-              {division.played > 0 ? 'Se puede cambiar al empezar la próxima temporada.' : 'Mixtos: plantillas con química como la tuya. Reales: clubes de verdad según el nivel de la división.'}
-            </span>
-          </div>
-          <TeamPanel
-            team={divOpp}
-            cta={`Jugar jornada ${division.played + 1}`}
-            disabled={!view.complete}
-            onPlay={() => play({ mode: 'division', opponent: divOpp, difficulty: divOpp.difficulty, title: `División ${division.level} · Jornada ${division.played + 1}` })}
-          />
-        </div>
-      )}
+      {mode === 'divisions' && <LeagueView canPlay={view.complete} onPlay={play} />}
 
       {mode === 'cup' && (
         <div className="cup">

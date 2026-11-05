@@ -275,6 +275,50 @@ EVENT_THEMES.gala = {
   shape: 'arched',
 };
 
+EVENT_THEMES.mundial = {
+  name: 'Once Ideal del Mundial',
+  frame: 'linear-gradient(145deg, #fffbe0 0%, #f5c443 18%, #0a6b3b 42%, #ffe680 60%, #064126 80%, #d6a84c 100%)',
+  base: '#03140b',
+  tint: 'linear-gradient(165deg, rgba(20,170,90,.45), rgba(245,196,67,.22))',
+  rating: fill('#fff8d6', '#f5c443'),
+  accent: '#f5d25a',
+  glow: 'rgba(60,220,130,.6)',
+  foil: 'rays',
+  foilInk: 'rgba(255,236,150,.55)',
+  motion: 'holo',
+  frameStyle: 'gems',
+  shape: 'arched',
+};
+EVENT_THEMES.euro = {
+  name: 'Once Ideal de la Eurocopa',
+  frame: 'linear-gradient(145deg, #ffffff 0%, #9fc6ff 20%, #0b2a7a 44%, #e8eefc 62%, #071a52 82%, #b9c6e0 100%)',
+  base: '#030b22',
+  tint: 'linear-gradient(165deg, rgba(60,120,255,.45), rgba(220,230,255,.18))',
+  rating: fill('#ffffff', '#b9d2ff'),
+  accent: '#cfe0ff',
+  glow: 'rgba(90,140,255,.7)',
+  foil: 'stars',
+  foilInk: 'rgba(220,232,255,.75)',
+  motion: 'sweep',
+  frameStyle: 'double',
+  shape: 'notched',
+};
+/** En Forma (Equipo de la Semana): negro y plata, como las cartas "in form". */
+EVENT_THEMES.totw = {
+  name: 'En Forma',
+  frame: 'linear-gradient(145deg, #f4f4f4 0%, #7d7d7d 20%, #0b0b0b 44%, #d9d9d9 62%, #0a0a0a 82%, #9a9a9a 100%)',
+  base: '#050505',
+  tint: 'linear-gradient(170deg, rgba(255,255,255,.08), rgba(0,0,0,.55))',
+  rating: fill('#ffffff', '#cfcfcf'),
+  accent: '#e8e8e8',
+  glow: 'rgba(255,255,255,.35)',
+  foil: 'diagonal',
+  foilInk: 'rgba(255,255,255,.12)',
+  motion: 'sweep',
+  frameStyle: 'double',
+  shape: 'sharp',
+};
+
 /** Tema de una carta: el del evento si lo tiene; si no, el de su año. */
 export function cardTheme(year: number, eventKind?: string, leagueId?: string): EditionTheme {
   if (eventKind === 'tots') return { ...totsTheme(leagueId), year };

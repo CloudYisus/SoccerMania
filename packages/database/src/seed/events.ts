@@ -20,6 +20,11 @@ export const EVENTS: CardEvent[] = [
   { id: 'tots-ita-2025', kind: 'tots', leagueId: 'ita-serie-a', name: 'Equipo de la Temporada · Serie A', cardName: 'EQUIPO DE LA TEMPORADA', year: 2025, description: 'El once ideal de la Serie A 2024-25, según el juego.' },
   { id: 'tots-ger-2025', kind: 'tots', leagueId: 'ger-bundesliga', name: 'Equipo de la Temporada · Bundesliga', cardName: 'EQUIPO DE LA TEMPORADA', year: 2025, description: 'El once ideal de la Bundesliga 2024-25, según el juego.' },
   { id: 'tots-fra-2025', kind: 'tots', leagueId: 'fra-ligue-1', name: 'Equipo de la Temporada · Ligue 1', cardName: 'EQUIPO DE LA TEMPORADA', year: 2025, description: 'El once ideal de la Ligue 1 2024-25, según el juego.' },
+  // Onces históricos (selecciones propias del juego, inspiradas en cada torneo/temporada)
+  { id: 'tots-eng-2014', kind: 'tots', leagueId: 'eng-premier', name: 'Equipo de la Temporada · Premier League 13/14', cardName: 'EQUIPO DE LA TEMPORADA', year: 2014, description: 'El once ideal de la Premier League 2013-14: el Liverpool de Suárez y Sturridge, el City de Yaya Touré y el Chelsea de Hazard.' },
+  { id: 'mundial-2014', kind: 'mundial', name: 'Once Ideal · Mundial 2014', cardName: 'ONCE IDEAL MUNDIAL', year: 2014, description: 'Los destacados del Mundial de Brasil 2014, según el juego.' },
+  { id: 'euro-2008', kind: 'euro', name: 'Once Ideal · Eurocopa 2008', cardName: 'ONCE IDEAL EUROCOPA', year: 2008, description: 'La Eurocopa del tiqui-taca y de la Rusia de Arshavin, según el juego.' },
+  { id: 'euro-2004', kind: 'euro', name: 'Once Ideal · Eurocopa 2004', cardName: 'ONCE IDEAL EUROCOPA', year: 2004, description: 'La gesta de Grecia y los mejores de Portugal 2004, según el juego.' },
 ];
 
 /** Nombre|POS|media|nación|club|temporada[|alt1,alt2] */
@@ -179,6 +184,65 @@ const ROSTERS: Record<string, string> = {
     Greenwood|RW|89|gb-eng|marseille|2024-25
     Doué|LW|89|fr|psg|2024-25|RW
     Dembélé|ST|94|fr|psg|2024-25|RW
+  `,
+  'tots-eng-2014': `
+    Čech|GK|88|cz|chelsea|2013-14
+    Coleman|RB|86|ie|everton|2013-14|RWB
+    Cahill|CB|87|gb-eng|chelsea|2013-14
+    Kompany|CB|89|be|man-city|2013-14
+    Shaw|LB|85|gb-eng|southampton|2013-14|LWB
+    Yaya Touré|CM|92|ci|man-city|2013-14|CAM,CDM
+    Gerrard|CDM|91|gb-eng|liverpool|2013-14|CM
+    Lallana|CAM|87|gb-eng|southampton|2013-14|CM,LM
+    Hazard|LW|92|be|chelsea|2013-14|CAM
+    Suárez|ST|94|uy|liverpool|2013-14|CF
+    Sturridge|ST|90|gb-eng|liverpool|2013-14|CF
+  `,
+  'mundial-2014': `
+    Neuer|GK|93|de|bayern|2014
+    Lahm|RB|92|de|bayern|2014|CDM
+    Hummels|CB|90|de|dortmund|2014
+    Thiago Silva|CB|90|br|psg|2014
+    Marcos Rojo|LB|86|ar|sporting|2014|CB
+    Mascherano|CDM|90|ar|barcelona|2014|CB
+    Kroos|CM|91|de|bayern|2014|CAM
+    James Rodríguez|CAM|91|co|monaco|2014|RW|Bota de Oro del Mundial
+    Robben|RW|92|nl|bayern|2014
+    Messi|RW|95|ar|barcelona|2014|CF
+    T. Müller|ST|91|de|bayern|2014|CAM,RW
+    Neymar|LW|91|br|barcelona|2014
+    Götze|CAM|88|de|bayern|2014|CF
+    Keylor Navas|GK|89|cr|levante|2014
+  `,
+  'euro-2008': `
+    Casillas|GK|93|es|real-madrid|2008
+    Sergio Ramos|RB|88|es|real-madrid|2008|CB
+    Puyol|CB|91|es|barcelona|2008
+    Marchena|CB|86|es|valencia|2008|CDM
+    Lahm|LB|89|de|bayern|2008|RB
+    Senna|CDM|90|es|villarreal|2008|CM
+    Xavi|CM|94|es|barcelona|2008
+    Ballack|CM|89|de|chelsea|2008|CAM
+    Sneijder|CAM|89|nl|real-madrid|2008|CM
+    Arshavin|LW|91|ru|zenit|2008|CAM
+    Villa|ST|92|es|valencia|2008|LW
+    Fernando Torres|ST|90|es|liverpool|2008
+    Pavlyuchenko|ST|85|ru|spartak|2008
+  `,
+  'euro-2004': `
+    Nikopolidis|GK|86|gr|panathinaikos|2004
+    Seitaridis|RB|84|gr|panathinaikos|2004
+    Dellas|CB|88|gr|roma|2004
+    Ricardo Carvalho|CB|89|pt|porto|2004
+    Ashley Cole|LB|87|gb-eng|arsenal|2004
+    Zagorakis|CDM|90|gr|aek|2004|CM
+    Maniche|CM|87|pt|porto|2004|CAM
+    Lampard|CM|89|gb-eng|chelsea|2004|CAM
+    Nedvěd|CAM|91|cz|juventus|2004|LM
+    Cristiano Ronaldo|RW|86|pt|man-utd|2004|LW
+    Rooney|ST|88|gb-eng|everton|2004|CF
+    Baroš|ST|88|cz|liverpool|2004
+    Charisteas|ST|87|gr|bremen|2004
   `,
 };
 

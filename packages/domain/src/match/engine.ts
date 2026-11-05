@@ -27,6 +27,7 @@ import {
   type PlayerState,
   type RenderFrame,
   type ShotMode,
+  type ShotStory,
   type TeamSide,
   type TeamStats,
 } from './types';
@@ -94,6 +95,11 @@ interface Agent extends PlayerState {
   arrivalUntil: number;
   /** Estirada / carrera explosiva en curso (portero que se lanza, etc.). */
   dive: { vx: number; vy: number; until: number } | null;
+  /** Punto donde recibió el balón por última vez (para medir conducciones). */
+  recvX: number;
+  recvY: number;
+  /** Lesionado durante el partido: sigue jugando mermado. */
+  injured: boolean;
 }
 
 type RestartKind = 'throw' | 'goalkick' | 'corner' | 'freekick' | 'penalty';
@@ -228,7 +234,9 @@ interface ShotStyle {
 
 
 /** Jugadas de prioridad alta: no se filtran y piden cámara lenta. */
-const MAJOR: ReadonlySet<HighlightKind> = new Set(['goal', 'penalty', 'oneonone', 'roundkeeper', 'bigsave', 'woodwork', 'freekick']);
+const MAJOR: ReadonlySet<HighlightKind> = new Set(['goal', 'penalty', 'oneonone', 'roundkeeper', 'bigsave', 'woodwork', 'freekick', 'injury']);
+/** Probabilidad de lesión por falta recibida (entradas duras: el doble). */
+const INJURY_CHANCE = 0.026;
 /** Separación mínima (segundos de motor) entre avisos de prioridad normal. */
 const HIGHLIGHT_COOLDOWN = 7;
 
@@ -257,7 +265,9 @@ export class MatchEngine {
   private readonly log: MatchEvent[] = [];
   private lastHighlightAt = -Infinity;
   /** Último pase completado (para asistencias). */
-  private lastPass: { kickerId: string; receiverId: string; side: TeamSide; time: number } | null = null;
+  private lastPass: { kickerId: string; receiverId: string; side: TeamSide; time: number; variant: PassVariant } | null = null;
+  /** Lesiones ya producidas por equipo (máx. 1 por equipo y partido). */
+  private injuries: Record<TeamSide, number> = { home: 0, away: 0 };
 
   // Decisiones del usuario
   private decisionSide: TeamSide | null = null;
@@ -332,6 +342,9 @@ export class MatchEngine {
           boxRun: false,
           arrivalUntil: 0,
           dive: null,
+          recvX: 0,
+          recvY: 0,
+          injured: false,
         };
         if (this.byId.has(agent.id)) throw new Error(`ID de jugador duplicado en el partido: ${agent.id}`);
         this.agents.push(agent);
@@ -1646,6 +1659,17 @@ export class MatchEngine {
       tx = gx + dirOut * 1.5;
       ty = W / 2 + (this.rng.chance(0.5) ? 1 : -1) * (GOAL_HALF + this.rng.range(0.6, 6));
     }
+    const lp = this.lastPass;
+    const story: ShotStory = {
+      carry: Math.round(Math.hypot(a.x - a.recvX, a.y - a.recvY)),
+      beaten: a.beaten,
+      distance: Math.round(dGoal),
+      mode,
+      style: style?.kind,
+      assist: lp && lp.side === side && lp.receiverId === a.id && this.time - lp.time < 10 ? lp.variant : undefined,
+      xg,
+      decision: style?.decisionId !== undefined,
+    };
     const d = Math.hypot(tx - a.x, ty - a.y);
     const speed = style?.kind === 'chip' ? 15 : mode === 'freekick' ? 23 : mode === 'header' ? 18 : style?.kind === 'power' ? 33 : 27;
     this.ball.ownerId = null;
@@ -1664,6 +1688,7 @@ export class MatchEngine {
       targetId: outcome === 'saved' ? keeper.id : null,
       kickerId: a.id,
       decisionId: style?.decisionId,
+      story,
     };
     this.lastTouch = side;
     this.stats[side].shots++;
@@ -1731,6 +1756,7 @@ export class MatchEngine {
     this.stats[def.side].fouls++;
     this.emit('foul', def.side, `Falta de ${def.name} sobre ${victim.name}`, true, def.id, victim.id);
     victim.stunned = 0.5;
+    if (this.rng.chance(INJURY_CHANCE * (cardChance > 0.3 ? 2 : 1))) this.injure(victim);
     if (!def.booked && this.rng.chance(cardChance)) {
       def.booked = true;
       this.stats[def.side].yellowCards++;
@@ -1753,6 +1779,25 @@ export class MatchEngine {
       return;
     }
     this.startRestart('freekick', att, x, y, false);
+  }
+
+  /** Lesión (poco frecuente): el jugador sigue mermado y se perderá próximos partidos. */
+  private injure(a: Agent) {
+    if (a.injured || a.isGK || this.injuries[a.side] >= 1) return;
+    this.injuries[a.side]++;
+    a.injured = true;
+    a.attrs = {
+      ...a.attrs,
+      pace: Math.round(a.attrs.pace * 0.8),
+      physical: Math.round(a.attrs.physical * 0.82),
+      dribbling: Math.round(a.attrs.dribbling * 0.9),
+    };
+    a.stunned = 1.6;
+    const r = this.rng.next();
+    const matches = r < 0.5 ? 1 : r < 0.8 ? 2 : r < 0.94 ? 3 : 5;
+    const e = this.emit('injury', a.side, `${a.name} se duele y sigue tocado (baja de ${matches} partido${matches > 1 ? 's' : ''})`, true, a.id);
+    e.injuryMatches = matches;
+    this.highlight('injury', a.side, 'LESIÓN', `${a.name} se resiente y seguirá mermado`, a.id);
   }
 
   // ───────────────────────────── Decisiones del usuario ─────────────────────────────
@@ -3179,6 +3224,8 @@ export class MatchEngine {
     a.boxRun = false;
     a.dribbleX = a.x;
     a.dribbleY = a.y;
+    a.recvX = a.x;
+    a.recvY = a.y;
   }
 
   private updateBall(dt: number) {
@@ -3265,7 +3312,7 @@ export class MatchEngine {
           this.giveBall(r, f.outcome === 'intercepted');
           if (f.outcome === 'complete') {
             this.stats[side].passesCompleted++;
-            this.lastPass = { kickerId: kicker.id, receiverId: r.id, side, time: this.time };
+            this.lastPass = { kickerId: kicker.id, receiverId: r.id, side, time: this.time, variant: f.variant as PassVariant };
             if (!this.flightDecision(f, r)) this.announcePass(kicker, r, f, dl);
           } else {
             this.stats[r.side].interceptions++;
@@ -3317,6 +3364,7 @@ export class MatchEngine {
           assist?.id,
         );
         e.highlight = { kind: 'goal', title: '¡GOL!', detail: detail ? `${kicker.name} · ${detail}` : kicker.name, major: true };
+        e.story = f.story;
         this.lastHighlightAt = this.time;
         this.lastPass = null;
         return;
