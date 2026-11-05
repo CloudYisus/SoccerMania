@@ -134,9 +134,9 @@ export default function MatchScreen() {
     const listed = new Set(g.myListings.filter((l) => l.status === 'active').map((l) => l.cardId));
     const { squad, replaced } = matchdaySquad(g.squad, g.cards, g.injuries, listed);
     const view = computeSquadView(squad, g.cards, g.inForm);
-    const home = boosted(userToMatchSetup(view, g.squad.name, g.squad.tactics, g.squad.instructions), req.context?.userBoost);
+    const home = req.userSetup ?? boosted(userToMatchSetup(view, g.squad.name, g.squad.tactics, g.squad.instructions), req.context?.userBoost);
     const away = boosted(aiToMatchSetup(req.opponent), req.context?.rivalBoost);
-    const notes = replaced.map((r) => `${resolveVersion(g.cards[r.out].versionId).player.knownAs} está lesionado: juega ${resolveVersion(g.cards[r.in].versionId).player.knownAs}`);
+    const notes = (req.userSetup ? [] : replaced).map((r) => `${resolveVersion(g.cards[r.out].versionId).player.knownAs} está lesionado: juega ${resolveVersion(g.cards[r.in].versionId).player.knownAs}`);
     if (notes.length) setTimeout(() => notes.forEach((n, i) => setTimeout(() => useUi.getState().toast('info', n), i * 500)), 600);
     const engine = new MatchEngine(home, away, (Date.now() ^ 0x5f3759df) >>> 0);
     engine.setDecisionMode('home', loadFrequency());
@@ -402,7 +402,7 @@ export default function MatchScreen() {
 
   // Penaltis en eliminatorias de copa
   const penalties = useMemo(() => {
-    if (!finished || req.mode !== 'cup' || snap.score.home !== snap.score.away) return null;
+    if (!finished || (req.mode !== 'cup' && !req.knockout) || snap.score.home !== snap.score.away) return null;
     const shooters = (t: MatchTeamSetup) => [...t.players].sort((a, b) => b.attributes.shooting - a.attributes.shooting).map((p) => p.attributes.shooting);
     const keeper = (t: MatchTeamSetup) => t.players.find((p) => p.position === 'GK')?.attributes.goalkeeping ?? 50;
     const r = penaltyShootout(createRng(snap.score.home * 97 + Math.round(snap.time)), { shooting: shooters(home), keeper: keeper(home) }, { shooting: shooters(away), keeper: keeper(away) });
@@ -426,8 +426,8 @@ export default function MatchScreen() {
   const close = () => {
     if (finished) {
       const cupReport =
-        req.mode === 'cup'
-          ? reportFromEvents(engine.events, { home: { teamId: USER_ID, setup: home }, away: { teamId: req.opponent.id, setup: away } }, snap.score, cupPlayerName)
+        req.mode === 'cup' || req.mode === 'draft'
+          ? reportFromEvents(engine.events, { home: { teamId: USER_ID, setup: home }, away: { teamId: req.opponentId ?? req.opponent.id, setup: away } }, snap.score, cupPlayerName)
           : undefined;
       const g = useGame.getState();
       const perf = ratings

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { TeamBuild } from './teams';
 import type { MatchContext } from './league';
+import type { MatchTeamSetup } from '@fu/domain';
 
 export type Tab = 'home' | 'squad' | 'club' | 'market' | 'packs' | 'compete' | 'collections';
 export const TABS: { id: Tab; label: string }[] = [
@@ -20,7 +21,7 @@ export interface Toast {
 }
 
 export interface MatchRequest {
-  mode: 'quick' | 'division' | 'cup';
+  mode: 'quick' | 'division' | 'cup' | 'draft';
   /** Torneo (si mode = 'cup'). */
   tournamentId?: string;
   opponent: TeamBuild;
@@ -28,6 +29,12 @@ export interface MatchRequest {
   title: string;
   /** Ambientación y modificadores de una jornada de liga. */
   context?: MatchContext;
+  /** Once del usuario ya construido (Draft): sustituye a la plantilla del club. */
+  userSetup?: MatchTeamSetup;
+  /** Eliminatoria: en caso de empate hay penaltis. */
+  knockout?: boolean;
+  /** Id del rival en el torneo (para las estadísticas). */
+  opponentId?: string;
 }
 
 interface UiState {

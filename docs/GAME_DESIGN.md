@@ -102,3 +102,9 @@ más.
 - El once de la semana mezcla esos rendimientos con los de tus partidos (notas del motor). Máx. 2 por club y variedad entre semanas.
 - Si un jugador tuyo entra, juega su versión En Forma (negra) el próximo partido. Las cartas En Forma de la semana salen en sobres y en el mercado; conseguidas, son permanentes. Sólo cartas base (no Iconos, Históricos ni temporadas pasadas).
 - La semana se cierra con cada jornada de Liga o cada 3 partidos en otros modos.
+
+## Mundial Draft
+- Entrada: 3.000 monedas. Capitán (5 opciones, 86+), formación (5 al azar entre las 14) y 1 de 5 futbolistas por puesto.
+- Equilibrio de opciones (`DRAFT_TIERS`): 90+ 7 %, 87–89 18 %, 84–86 31 %, 80–83 30 %, 70–79 14 %; máx. una 90+ por puesto. El pool mezcla cartas actuales, temporadas pasadas, eventos, Iconos e Históricos, así que la química (que se muestra en cada opción) importa.
+- Mundial de 32: tu draft + 31 selecciones (plantillas actuales de cada país, completadas con temporadas pasadas si faltan jugadores). Sorteo por bombos, 8 grupos de 4, pasan 2; octavos (1A-2B…), cuartos, semifinal y final con penaltis en caso de empate.
+- Estadísticas propias (goleadores, asistentes, porterías a cero). Premio por ronda alcanzada (1.200 → 20.000); las cartas no pasan al club.

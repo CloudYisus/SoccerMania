@@ -7,6 +7,7 @@ import { CHALLENGES } from '../state/challenges';
 import { catalog } from '../data/catalog';
 import { CUP_ROUNDS, useGame } from '../state/gameStore';
 import { LeagueView } from './LeagueView';
+import { DraftView } from './DraftView';
 import { useSquadView } from '../state/squadView';
 import { buildOpponent, clubTeam, QUICK_OPPONENTS, REAL_CLUBS, type TeamBuild } from '../state/teams';
 import { TOURNAMENTS, tournamentById } from '../state/tournaments';
@@ -15,7 +16,7 @@ import { CupBracket, CupStats } from './CupView';
 import { feedback, useUi, type MatchRequest } from '../state/uiStore';
 import './compete.css';
 
-type Mode = 'quick' | 'divisions' | 'cup' | 'challenges';
+type Mode = 'quick' | 'divisions' | 'cup' | 'draft' | 'challenges';
 
 function Stars({ n }: { n: number }) {
   return (
@@ -78,7 +79,7 @@ export function CompeteScreen() {
   const clearIntent = useUi((s) => s.clearIntent);
   const [mode, setMode] = useState<Mode>('quick');
   useEffect(() => {
-    if (intent === 'divisions' || intent === 'challenges' || intent === 'cup' || intent === 'quick') {
+    if (intent === 'divisions' || intent === 'challenges' || intent === 'cup' || intent === 'quick' || intent === 'draft') {
       setMode(intent);
       clearIntent();
     }
@@ -124,7 +125,7 @@ export function CompeteScreen() {
 
   return (
     <div className="compete">
-      <SectionHeader eyebrow="Competir" title={{ quick: 'Partido rápido', divisions: 'Liga', cup: 'Torneos', challenges: 'Desafíos' }[mode]}>
+      <SectionHeader eyebrow="Competir" title={{ quick: 'Partido rápido', divisions: 'Liga', cup: 'Torneos', draft: 'Mundial Draft', challenges: 'Desafíos' }[mode]}>
         <Segmented<Mode>
           label="Modo"
           value={mode}
@@ -133,12 +134,13 @@ export function CompeteScreen() {
             { id: 'quick', label: 'Partido rápido' },
             { id: 'divisions', label: 'Liga' },
             { id: 'cup', label: 'Torneos' },
+            { id: 'draft', label: 'Draft' },
             { id: 'challenges', label: 'Desafíos' },
           ]}
         />
       </SectionHeader>
 
-      {!view.complete && mode !== 'challenges' && (
+      {!view.complete && mode !== 'challenges' && mode !== 'draft' && (
         <div className="notice">
           <span>Tu once está incompleto. Necesitas 11 titulares para competir.</span>
           <Button size="sm" variant="primary" onClick={() => go('squad')}>
@@ -147,6 +149,7 @@ export function CompeteScreen() {
         </div>
       )}
 
+      {mode !== 'draft' && (
       <div className="my-team-strip">
         <span className="t-ui muted">Tu equipo</span>
         <b className="t-num">{view.rating}</b>
@@ -158,6 +161,7 @@ export function CompeteScreen() {
           Tácticas <Icon.Chevron size={14} />
         </button>
       </div>
+      )}
 
       {mode === 'quick' && (
         <>
@@ -201,6 +205,8 @@ export function CompeteScreen() {
       )}
 
       {mode === 'divisions' && <LeagueView canPlay={view.complete} onPlay={play} />}
+
+      {mode === 'draft' && <DraftView onPlay={startMatch} />}
 
       {mode === 'cup' && (
         <div className="cup">

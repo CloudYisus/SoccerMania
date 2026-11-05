@@ -32,6 +32,20 @@ import { allVersions, catalog, STARTER } from '../data/catalog';
 import { applyResult, CUP_ROUNDS, createCup, cupPlayerName as cupName, emptyCup, normalizeCup, simulatePending, USER_ID, userFixture, type CupMatchReport, type CupState, type RivalMode } from './cup';
 import { tournamentById } from './tournaments';
 import { addUserPerf, closeWeek, emptyWorld, MATCHES_PER_WEEK, normalizeWorld, type TotwEntry, type WorldState } from './world';
+import {
+  applyUserResult,
+  chooseCaptain,
+  chooseFormation,
+  DRAFT_FEE,
+  emptyDraft,
+  ensureOptions,
+  normalizeDraft,
+  pickPlayer,
+  startDraft,
+  startTournament as startDraftTournament,
+  STAGE_LABEL,
+  type DraftState,
+} from './draft';
 import { createSeason, playRound, type LeagueSeason, type PressId, type TrainingId } from './league';
 
 export interface AiListing {
@@ -51,7 +65,7 @@ export interface MyListing {
 }
 export interface MatchRecord {
   id: string;
-  mode: 'quick' | 'division' | 'cup';
+  mode: 'quick' | 'division' | 'cup' | 'draft';
   opponent: string;
   goalsFor: number;
   goalsAgainst: number;
@@ -112,6 +126,8 @@ interface GameData {
   inForm: Record<string, string>;
   /** Lesiones: partidos que le quedan de baja a cada carta. */
   injuries: Record<string, number>;
+  /** Modo Draft (Mundial de 32 selecciones). */
+  draft: DraftState;
 }
 
 export interface ActionResult {
@@ -147,6 +163,13 @@ interface GameActions {
       scorers?: string[];
     },
   ): { coins: number; xp: number; levelsGained: number; note?: string; totw?: TotwEntry[]; totwWeek?: number };
+  draftStart(): ActionResult;
+  draftCaptain(versionId: string): void;
+  draftFormation(id: FormationId): void;
+  draftOptions(slot: number): void;
+  draftPick(slot: number, versionId: string): void;
+  draftBegin(): ActionResult;
+  draftAbandon(): void;
   setLeaguePlan(plan: { training?: TrainingId | null; press?: PressId | null }): void;
   treatInjury(cardId: string): ActionResult;
   startTournament(defId: string, mode: RivalMode): ActionResult;
@@ -210,6 +233,7 @@ function initialData(): GameData {
     world: emptyWorld(),
     inForm: {},
     injuries: {},
+    draft: emptyDraft(),
   };
 }
 
@@ -477,7 +501,21 @@ export const useGame = create<GameState>()(
 
         const { progress, levelsGained } = addXp(s.progress, reward.xp);
         const cards = { ...s.cards };
-        for (const id of s.squad.starters) if (id && cards[id]) cards[id] = registerGamePlayed(cards[id]);
+        const clubMatch = r.mode !== 'draft';
+        if (clubMatch) for (const id of s.squad.starters) if (id && cards[id]) cards[id] = registerGamePlayed(cards[id]);
+
+        // Draft: resultado en el Mundial; al terminar se cobra el premio de la ronda alcanzada.
+        let draft = s.draft;
+        if (r.mode === 'draft' && draft.status === 'running') {
+          draft = applyUserResult(draft, r.goalsFor, r.goalsAgainst, r.cupReport ?? { lines: [] }, r.penalties);
+          if (draft.status === 'won' || draft.status === 'eliminated') {
+            coins += draft.prize ?? 0;
+            note =
+              draft.status === 'won'
+                ? `¡Campeón del Mundial Draft! +${(draft.prize ?? 0).toLocaleString('es-ES')} monedas`
+                : `Fin del Mundial Draft (${draft.reached === 'group' ? 'fase de grupos' : STAGE_LABEL[draft.reached as keyof typeof STAGE_LABEL]?.toLowerCase() ?? ''}). Premio: ${(draft.prize ?? 0).toLocaleString('es-ES')} monedas`;
+          }
+        }
 
         // Lesiones: cada partido descuenta uno (dos con entrenamiento de recuperación).
         const heal = r.mode === 'division' && s.division.season?.plan.training === 'recovery' ? 2 : 1;
@@ -487,7 +525,7 @@ export const useGame = create<GameState>()(
 
         // En Forma: la versión mejorada dura un partido (el de los titulares que la usaron).
         const inForm = { ...s.inForm };
-        for (const id of s.squad.starters) if (id) delete inForm[id];
+        if (clubMatch) for (const id of s.squad.starters) if (id) delete inForm[id];
 
         // Equipo de la Semana: la semana se cierra con cada jornada de liga o cada 3 partidos.
         let world = addUserPerf(normalizeWorld(s.world), r.perf ?? [], r.opponent, `${r.goalsFor}-${r.goalsAgainst}`);
@@ -520,8 +558,41 @@ export const useGame = create<GameState>()(
           world,
           inForm,
           injuries,
+          draft,
         });
         return { coins, xp: reward.xp, levelsGained, note, totw, totwWeek };
+      },
+
+      draftStart() {
+        const s = get();
+        if (s.draft.status === 'drafting' || s.draft.status === 'running') return { ok: false, message: 'Ya tienes un draft en curso.' };
+        if (s.coins < DRAFT_FEE) return { ok: false, message: 'Monedas insuficientes para la entrada al draft.' };
+        set({ coins: s.coins - DRAFT_FEE, draft: startDraft(s.draft) });
+        return { ok: true, message: '¡Draft iniciado! Elige a tu capitán.' };
+      },
+      draftCaptain(versionId) {
+        set({ draft: chooseCaptain(get().draft, versionId) });
+      },
+      draftFormation(id) {
+        set({ draft: chooseFormation(get().draft, id) });
+      },
+      draftOptions(slot) {
+        const d = get().draft;
+        const next = ensureOptions(d, slot);
+        if (next !== d) set({ draft: next });
+      },
+      draftPick(slot, versionId) {
+        set({ draft: pickPlayer(get().draft, slot, versionId) });
+      },
+      draftBegin() {
+        const s = get();
+        const next = startDraftTournament(s.draft, s.squad.name);
+        if (next === s.draft) return { ok: false, message: 'Completa los 11 puestos antes de empezar.' };
+        set({ draft: next });
+        return { ok: true, message: '¡Sorteo realizado! Comienza el Mundial.' };
+      },
+      draftAbandon() {
+        set({ draft: emptyDraft(get().draft) });
       },
 
       setLeaguePlan(plan) {
@@ -577,8 +648,8 @@ export const useGame = create<GameState>()(
       version: 1,
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => {
-        const { saveVersion, coins, progress, cards, cardSeq, squad, welcomeClaimed, market, myListings, division, tournaments, challenges, history, world, inForm, injuries } = s;
-        return { saveVersion, coins, progress, cards, cardSeq, squad, welcomeClaimed, market, myListings, division, tournaments, challenges, history, world, inForm, injuries };
+        const { saveVersion, coins, progress, cards, cardSeq, squad, welcomeClaimed, market, myListings, division, tournaments, challenges, history, world, inForm, injuries, draft } = s;
+        return { saveVersion, coins, progress, cards, cardSeq, squad, welcomeClaimed, market, myListings, division, tournaments, challenges, history, world, inForm, injuries, draft };
       },
       // Descarta partidas guardadas que referencian versiones ya inexistentes en el catálogo.
       merge: (persisted, current) => {
@@ -596,7 +667,7 @@ export const useGame = create<GameState>()(
           p.division && (!p.division.season || !Array.isArray(p.division.season.fixtures))
             ? { ...p.division, season: undefined, played: 0, points: 0, wins: 0, draws: 0, losses: 0 }
             : p.division;
-        return { ...current, ...p, division: division ?? current.division, tournaments, world: normalizeWorld(p.world), inForm, injuries: cardsOk(p.injuries) as Record<string, number> };
+        return { ...current, ...p, division: division ?? current.division, tournaments, world: normalizeWorld(p.world), draft: normalizeDraft(p.draft), inForm, injuries: cardsOk(p.injuries) as Record<string, number> };
       },
     },
   ),
