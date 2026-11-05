@@ -646,7 +646,30 @@ export const useGame = create<GameState>()(
     {
       name: 'football-ultimate-save',
       version: 1,
-      storage: createJSONStorage(() => localStorage),
+      // Acceso protegido: si el navegador bloquea o llena el almacenamiento, el juego sigue funcionando.
+      storage: createJSONStorage(() => ({
+        getItem: (k: string) => {
+          try {
+            return localStorage.getItem(k);
+          } catch {
+            return null;
+          }
+        },
+        setItem: (k: string, v: string) => {
+          try {
+            localStorage.setItem(k, v);
+          } catch (e) {
+            console.warn('No se pudo guardar la partida', e);
+          }
+        },
+        removeItem: (k: string) => {
+          try {
+            localStorage.removeItem(k);
+          } catch {
+            /* sin almacenamiento */
+          }
+        },
+      })),
       partialize: (s) => {
         const { saveVersion, coins, progress, cards, cardSeq, squad, welcomeClaimed, market, myListings, division, tournaments, challenges, history, world, inForm, injuries, draft } = s;
         return { saveVersion, coins, progress, cards, cardSeq, squad, welcomeClaimed, market, myListings, division, tournaments, challenges, history, world, inForm, injuries, draft };
@@ -654,7 +677,9 @@ export const useGame = create<GameState>()(
       // Descarta partidas guardadas que referencian versiones ya inexistentes en el catálogo.
       merge: (persisted, current) => {
         const p = persisted as Partial<GameData> | undefined;
-        if (!p?.cards || Object.values(p.cards).some((c) => !catalog.versions.has(c.versionId))) return current;
+        if (!p?.cards || Object.values(p.cards).some((c) => !c || !catalog.versions.has(c.versionId))) return current;
+        // Estructura mínima: una partida dañada o de otra versión no debe romper la carga.
+        if (!p.squad || !Array.isArray(p.squad.starters) || !Array.isArray(p.squad.bench) || typeof p.coins !== 'number') return current;
         // Migración: la antigua copa única pasa a ser el torneo "ultimate".
         const legacy = (p as { cup?: Partial<CupState> }).cup;
         const tournaments: Record<string, CupState> = {};

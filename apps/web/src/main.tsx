@@ -11,9 +11,12 @@ import '@fontsource/barlow/600.css';
 import './styles/tokens.css';
 import './styles/base.css';
 import { App } from './App';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );

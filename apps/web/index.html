@@ -9,6 +9,49 @@
   </head>
   <body>
     <div id="root"></div>
+    <!--
+      Pantalla de recuperación: si la app no llega a montarse (caché antigua del
+      navegador, partida guardada incompatible…), se ofrece recargar o reparar
+      en lugar de dejar la pantalla en negro.
+    -->
+    <div id="fu-rescue" style="position:fixed;inset:0;display:none;place-items:center;padding:20px;background:#07080a;color:#f4efe4;font:16px/1.5 system-ui,sans-serif;z-index:9999">
+      <div style="max-width:460px;text-align:center">
+        <h1 style="font-size:24px;margin:0 0 8px">El juego no ha podido cargar</h1>
+        <p style="opacity:.75;margin:0 0 6px">Suele deberse a archivos antiguos en la caché del navegador o a una partida guardada de una versión anterior.</p>
+        <p id="fu-rescue-msg" style="opacity:.5;font-size:13px;margin:0 0 16px;word-break:break-word"></p>
+        <button id="fu-rescue-reload" style="margin:4px;padding:10px 16px;border:0;border-radius:8px;background:#f3d99b;color:#111;font-weight:700;cursor:pointer">Recargar</button>
+        <button id="fu-rescue-reset" style="margin:4px;padding:10px 16px;border:1px solid #f3d99b;border-radius:8px;background:transparent;color:#f3d99b;font-weight:700;cursor:pointer">Reparar partida y recargar</button>
+        <p style="opacity:.5;font-size:12px;margin-top:12px">"Reparar" guarda una copia de seguridad de tu partida y empieza con una nueva.</p>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var KEY = 'football-ultimate-save';
+        function show(msg) {
+          if (window.__fuMounted) return;
+          var el = document.getElementById('fu-rescue');
+          if (!el) return;
+          el.style.display = "grid";
+          if (msg) document.getElementById('fu-rescue-msg').textContent = String(msg).slice(0, 300);
+        }
+        window.__fuRescue = function (msg) {
+          window.__fuMounted = false;
+          show(msg);
+        };
+        window.addEventListener('error', function (e) { show(e && (e.message || (e.error && e.error.message))); });
+        window.addEventListener('unhandledrejection', function (e) { show(e && e.reason && (e.reason.message || e.reason)); });
+        setTimeout(function () { if (!window.__fuMounted) show('Tiempo de carga agotado.'); }, 12000);
+        document.getElementById('fu-rescue-reload').onclick = function () { location.reload(); };
+        document.getElementById('fu-rescue-reset').onclick = function () {
+          try {
+            var v = localStorage.getItem(KEY);
+            if (v) localStorage.setItem(KEY + '-backup', v);
+            localStorage.removeItem(KEY);
+          } catch (err) {}
+          location.reload();
+        };
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
